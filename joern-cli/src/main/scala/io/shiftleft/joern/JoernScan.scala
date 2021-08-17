@@ -28,6 +28,7 @@ case class JoernScanConfig(src: String = "",
                            maxCallDepth: Int = 2,
                            names: String = "",
                            tags: String = "",
+                           allQueries: Boolean = false,
                            language: Option[String] = None)
 
 object JoernScan extends App with BridgeBase {
@@ -74,6 +75,10 @@ object JoernScan extends App with BridgeBase {
         .action((x, c) => c.copy(tags = x))
         .text("Filter queries used for scanning by tags, comma-separated string")
 
+      opt[Unit]("all-queries")
+        .action((_, c) => c.copy(allQueries = true))
+        .text("Run all queries. Overrides names and tags options.")
+
       opt[Int]("depth")
         .action((x, c) => c.copy(maxCallDepth = x))
         .text("Set call depth for interprocedural analysis")
@@ -103,6 +108,7 @@ object JoernScan extends App with BridgeBase {
       Scan.defaultOpts.names = config.names.split(",").filterNot(_.isEmpty)
       Scan.defaultOpts.tags = config.tags.split(",").filterNot(_.isEmpty)
       Scan.defaultOpts.maxCallDepth = config.maxCallDepth
+      Scan.defaultOpts.allQueries = config.allQueries
       val shellConfig = io.shiftleft.console
         .Config()
         .copy(pluginToRun = Some("scan"),
@@ -178,13 +184,13 @@ object JoernScan extends App with BridgeBase {
 object Scan {
   val overlayName = "scan"
   val description = "Joern Code Scanner"
-  var defaultOpts = new ScanOptions(maxCallDepth = 2, names = Array[String](), tags = Array[String]())
+  var defaultOpts = new ScanOptions(maxCallDepth = 2, names = Array[String](), tags = Array[String](), allQueries = false)
 
   val defaultTag = "default"
   val allTag = "all"
 }
 
-class ScanOptions(var maxCallDepth: Int, var names: Array[String], var tags: Array[String])
+class ScanOptions(var maxCallDepth: Int, var names: Array[String], var tags: Array[String], var allQueries: Boolean)
     extends LayerCreatorOptions {}
 
 class Scan(options: ScanOptions)(implicit engineContext: EngineContext) extends LayerCreator {
@@ -200,7 +206,11 @@ class Scan(options: ScanOptions)(implicit engineContext: EngineContext) extends 
       println("You have not installed any query bundles. Try:")
       println("joern-scan --updatedb")
     }
-    val queriesAfterFilter = filteredQueries(allQueries, options.names, options.tags)
+    val queriesAfterFilter = if (options.allQueries) {
+      allQueries
+    } else {
+      filteredQueries(allQueries, options.names, options.tags)
+    }
     if (queriesAfterFilter.isEmpty) {
       println("No queries matching current filter selection")
     }
