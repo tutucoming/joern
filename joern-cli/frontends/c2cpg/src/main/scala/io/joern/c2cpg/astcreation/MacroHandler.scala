@@ -23,11 +23,7 @@ trait MacroHandler {
   /**
     * For the given node, determine if it is expanded from a macro, and if so,
     * create a Call node to represent the macro invocation and attach `ast`
-    * as its child. Also create a METHOD node to represent the macro if it has
-    * not been created as part of processing the current translation unit.
-    * Removal of duplicates that result from usage of the same macro in multiple
-    * compilation units is deferred to a pass that runs once all ASTs have been
-    * created.
+    * as its child.
     * */
   def asChildOfMacroCall(node: IASTNode, ast: Ast, order: Int): Ast = {
     val macroCallAst = extractMatchingMacro(node).map {
