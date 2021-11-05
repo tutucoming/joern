@@ -2,7 +2,7 @@ package io.joern.jimple2cpg.unpacking
 
 import io.joern.jimple2cpg.Jimple2Cpg
 import io.shiftleft.codepropertygraph.Cpg
-import io.shiftleft.semanticcpg.language.{toMethodTraversalExtGen, toNodeTypeStarters}
+import io.shiftleft.semanticcpg.language._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -40,10 +40,13 @@ class JarUnpacking extends AnyWordSpec with Matchers with BeforeAndAfterAll {
     val List(foo) = cpg.typeDecl("Foo").l
     foo.name shouldBe "Foo"
 
-    val List(bar) = cpg.typeDecl("pac.Bar").l
+    val List(bar) = cpg.typeDecl.fullName("pac.Bar").l
     bar.name shouldBe "Bar"
 
-    cpg.method.filterNot(_.isExternal).fullName.toSet shouldBe Set("Foo.<init>:void()", "Foo.add:int(int,int)", "pac.Bar.sub:int(int,int)",  "pac.Bar.<init>:void()")
+    cpg.method.filterNot(_.isExternal).fullName.toSet shouldBe Set("Foo.<init>:void()",
+                                                                   "Foo.add:int(int,int)",
+                                                                   "pac.Bar.sub:int(int,int)",
+                                                                   "pac.Bar.<init>:void()")
   }
 
 }
