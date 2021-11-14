@@ -116,7 +116,7 @@ class Ghidra2Cpg() {
     val functionIterator = listing.getFunctions(true)
     val functions = functionIterator.iterator.asScala.toList
 
-    val address2Literals: Map[Long, String] = DefinedDataIterator
+    val address2Literal: Map[Long, String] = DefinedDataIterator
       .definedStrings(program)
       .iterator()
       .asScala
@@ -137,7 +137,7 @@ class Ghidra2Cpg() {
         functions.foreach { function =>
           new MipsFunctionPass(
             program,
-            address2Literals,
+            address2Literal,
             fileAbsolutePath,
             function,
             cpg,
@@ -172,7 +172,7 @@ class Ghidra2Cpg() {
 
     new TypesPass(cpg).createAndApply()
     new JumpPass(cpg, keyPoolIterator.next()).createAndApply()
-    new LiteralPass(cpg, address2Literals, program, keyPoolIterator.next()).createAndApply()
+    new LiteralPass(cpg, address2Literal, program, keyPoolIterator.next()).createAndApply()
   }
 
   private class HeadlessProjectConnection(
