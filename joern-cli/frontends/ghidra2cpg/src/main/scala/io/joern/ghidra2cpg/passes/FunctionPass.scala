@@ -1,6 +1,5 @@
 package io.joern.ghidra2cpg.passes
 
-import ghidra.app.decompiler.DecompInterface
 import ghidra.program.model.address.GenericAddress
 import ghidra.program.model.lang.Register
 import ghidra.program.model.listing.{
@@ -14,7 +13,6 @@ import ghidra.program.model.listing.{
 }
 import ghidra.program.model.pcode.HighFunction
 import ghidra.program.model.scalar.Scalar
-import ghidra.util.task.ConsoleTaskMonitor
 import io.joern.ghidra2cpg._
 import io.joern.ghidra2cpg.processors._
 import io.joern.ghidra2cpg.utils.Nodes._

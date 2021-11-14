@@ -7,7 +7,6 @@ import ghidra.framework.model.{Project, ProjectLocator}
 import ghidra.framework.project.{DefaultProject, DefaultProjectManager}
 import ghidra.framework.protocol.ghidra.{GhidraURLConnection, Handler}
 import ghidra.framework.{Application, HeadlessGhidraApplicationConfiguration}
-import ghidra.program.flatapi.FlatProgramAPI
 import ghidra.program.model.listing.Program
 import ghidra.program.util.{DefinedDataIterator, GhidraProgramUtilities}
 import ghidra.util.exception.InvalidInputException
@@ -110,8 +109,6 @@ class Ghidra2Cpg() {
   }
 
   def handleProgram(program: Program, fileAbsolutePath: String, cpg: Cpg): Unit = {
-
-    val flatProgramAPI: FlatProgramAPI = new FlatProgramAPI(program)
     val decompiler = Decompiler(program).get
 
     // Functions
@@ -175,7 +172,7 @@ class Ghidra2Cpg() {
 
     new TypesPass(cpg).createAndApply()
     new JumpPass(cpg, keyPoolIterator.next()).createAndApply()
-    new LiteralPass(cpg, address2Literals, program, flatProgramAPI, keyPoolIterator.next()).createAndApply()
+    new LiteralPass(cpg, address2Literals, program, keyPoolIterator.next()).createAndApply()
   }
 
   private class HeadlessProjectConnection(
