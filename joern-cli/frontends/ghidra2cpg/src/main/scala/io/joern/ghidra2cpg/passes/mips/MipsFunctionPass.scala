@@ -37,56 +37,56 @@ class MipsFunctionPass(currentProgram: Program,
       .toList
     //jal 0x00000000 and some jalr t9
     if (opCodes.isEmpty) return
-    //println(callNode.code)
-    opCodes.zipWithIndex.foreach { case (pcodeOpAST, index) =>
-      pcodeOpAST.getInputs.foreach { input =>
-        if (input.isRegister) {
-          var name = input.getHigh.getName
-          val high = input.getHigh
-          if (high != null && input.getDef != null && high.getName == "UNNAMED" && input.getDef != null && input.getDef.getInputs != null) {
-            val symbol = input.getDef.getInputs.toList.lastOption
-              .flatMap(x => Option(x.getHigh))
-              .flatMap(x => Option(x.getSymbol))
-            if (symbol.isDefined) name = symbol.get.getName
-          }
-          val node = createIdentifier(name,
-            name,
-            index + 1,
-            Types.registerType(name),
-            instruction.getMinAddress.getOffsetAsBigInteger.intValue)
-          connectCallToArgument(callNode, node)
-        } else if (input.isConstant) {
-          //val node =
-          //  createLiteral("0x" + input.getWordOffset.toHexString,
-          //                index + 1,
-          //                index + 1,
-          //                "0x" + input.getWordOffset.toHexString,
-          //                instruction.getMinAddress.getOffsetAsBigInteger.intValue)
-          //connectCallToArgument(callNode, node)
-        } else if (input.isUnique) {
-          val value = address2Literal.getOrElse(input.getDef.getInputs.toList.head.getAddress.getOffset,
-            input.getDef.getInputs.toList.head.getAddress.getOffset.toString)
-          val node = createLiteral(value,
-            index + 1,
-            index + 1,
-            input.getWordOffset.toHexString,
-            instruction.getMinAddress.getOffsetAsBigInteger.intValue)
-          connectCallToArgument(callNode, node)
-        } else if (input.isInput) {
-          println("input " + input)
-          if (input.isAddress) {
-            val address = input.asInstanceOf[VarnodeAST]
-            println("STAAAAAAAAAAAA " + address.getDef)
-          }
+    opCodes.zipWithIndex.foreach {
+      case (pcodeOpAST, index) =>
+        pcodeOpAST.getInputs.foreach { input =>
+          if (input.isRegister) {
+            var name = input.getHigh.getName
+            val high = input.getHigh
+            if (high != null && input.getDef != null && high.getName == "UNNAMED" && input.getDef != null && input.getDef.getInputs != null) {
+              val symbol = input.getDef.getInputs.toList.lastOption
+                .flatMap(x => Option(x.getHigh))
+                .flatMap(x => Option(x.getSymbol))
+              if (symbol.isDefined) name = symbol.get.getName
+            }
+            val node = createIdentifier(name,
+                                        name,
+                                        index + 1,
+                                        Types.registerType(name),
+                                        instruction.getMinAddress.getOffsetAsBigInteger.intValue)
+            connectCallToArgument(callNode, node)
+          } else if (input.isConstant) {
+            //val node =
+            //  createLiteral("0x" + input.getWordOffset.toHexString,
+            //                index + 1,
+            //                index + 1,
+            //                "0x" + input.getWordOffset.toHexString,
+            //                instruction.getMinAddress.getOffsetAsBigInteger.intValue)
+            //connectCallToArgument(callNode, node)
+          } else if (input.isUnique) {
+            val value = address2Literal.getOrElse(input.getDef.getInputs.toList.head.getAddress.getOffset,
+                                                  input.getDef.getInputs.toList.head.getAddress.getOffset.toString)
+            val node = createLiteral(value,
+                                     index + 1,
+                                     index + 1,
+                                     input.getWordOffset.toHexString,
+                                     instruction.getMinAddress.getOffsetAsBigInteger.intValue)
+            connectCallToArgument(callNode, node)
+          } else if (input.isInput) {
+            println("input " + input)
+            if (input.isAddress) {
+              val address = input.asInstanceOf[VarnodeAST]
+              println("STAAAAAAAAAAAA " + address.getDef)
+            }
 
-          //val node = createLiteral(input.toString(),
-          //                         index + 1,
-          //                         index + 1,
-          //                         input.toString(),
-          //                         instruction.getMinAddress.getOffsetAsBigInteger.intValue)
-          //connectCallToArgument(callNode, node)
+            //val node = createLiteral(input.toString(),
+            //                         index + 1,
+            //                         index + 1,
+            //                         input.toString(),
+            //                         instruction.getMinAddress.getOffsetAsBigInteger.intValue)
+            //connectCallToArgument(callNode, node)
+          }
         }
-      }
     }
   }
 
@@ -97,8 +97,8 @@ class MipsFunctionPass(currentProgram: Program,
         opObject match {
           case register: Register =>
             val node = createIdentifier(register.getName,
-              register.getName,
-              index + 1,
+                                        register.getName,
+                                        index + 1,
                                         Types.registerType(register.getName),
                                         instruction.getMinAddress.getOffsetAsBigInteger.intValue)
             connectCallToArgument(instructionNode, node)
