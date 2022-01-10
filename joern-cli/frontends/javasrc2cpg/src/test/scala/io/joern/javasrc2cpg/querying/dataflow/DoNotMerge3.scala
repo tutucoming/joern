@@ -2,6 +2,7 @@ package io.joern.javasrc2cpg.querying.dataflow
 
 import io.joern.dataflowengineoss.language._
 import io.joern.javasrc2cpg.testfixtures.JavaDataflowFixture
+import io.shiftleft.codepropertygraph.generated.nodes.Call
 import io.shiftleft.semanticcpg.language._
 
 class DoNotMerge3 extends JavaDataflowFixture {
