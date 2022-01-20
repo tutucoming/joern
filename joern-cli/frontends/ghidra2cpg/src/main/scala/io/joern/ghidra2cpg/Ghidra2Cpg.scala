@@ -153,6 +153,7 @@ class Ghidra2Cpg() {
         functions.foreach { function =>
           new ArmFunctionPass(
             program,
+            address2Literals,
             fileAbsolutePath,
             function,
             cpg,

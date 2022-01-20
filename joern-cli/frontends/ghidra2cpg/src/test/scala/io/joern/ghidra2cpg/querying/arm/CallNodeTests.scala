@@ -39,6 +39,7 @@ class CallNodeTests extends GhidraBinToCpgSuite {
     // TODO this technically correct but we are interested in the 0x14
     // mov        w0,#0x14
     // bl         test
+    println(cpg.call.name("test").code.l)
     cpg.call
       .name("test")
       .where(_.method.name("main"))
