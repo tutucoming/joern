@@ -43,21 +43,24 @@ object TypeRenderer {
   }
 
   def render(t: KotlinType, shouldMapPrimitiveArrayTypes: Boolean = true): String = {
-    val renderer = descriptorRenderer()
+    val renderer    = descriptorRenderer()
+    val descriptor  = t.getConstructor.getDeclarationDescriptor
+    val plainRender = renderer.renderType(t)
     val rendered = {
       if (TypeUtilsKt.isTypeParameter(t)) {
         TypeConstants.javaLangObject
       } else if (isFunctionXType(t)) {
         TypeConstants.kotlinFunctionXPrefix + (t.getArguments.size() - 1).toString
-      } else {
-        val fqName     = DescriptorUtils.getFqName(t.getConstructor.getDeclarationDescriptor)
+      } else if (descriptor != null) {
+        val fqName     = DescriptorUtils.getFqName(descriptor)
         val mappedType = JavaToKotlinClassMap.INSTANCE.mapKotlinToJava(fqName)
         if (mappedType != null) {
           stripped(renderer.renderFqName(mappedType.asSingleFqName().toUnsafe))
         } else {
-          val rendered = renderer.renderType(t)
-          stripped(rendered)
+          stripped(plainRender)
         }
+      } else {
+        stripped(plainRender)
       }
     }
     if (shouldMapPrimitiveArrayTypes && primitiveArrayMappings.contains(rendered)) {
