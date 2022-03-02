@@ -58,7 +58,7 @@ object C2Cpg {
   private val logger = LoggerFactory.getLogger(classOf[C2Cpg])
 
   final case class Config(
-    inputPaths: Set[String] = Set.empty,
+    inputPaths: List[String] = List.empty,
     outputPath: String = X2CpgConfig.defaultOutputPath,
     includePaths: Set[String] = Set.empty,
     defines: Set[String] = Set.empty,
@@ -69,7 +69,7 @@ object C2Cpg {
     includePathsAutoDiscovery: Boolean = true
   ) extends X2CpgConfig[Config] {
 
-    override def withAdditionalInputPath(inputPath: String): Config = copy(inputPaths = inputPaths + inputPath)
+    override def withAdditionalInputPath(inputPath: String): Config = copy(inputPaths = inputPaths.appended(inputPath))
     override def withOutputPath(x: String): Config                  = copy(outputPath = x)
   }
 

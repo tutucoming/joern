@@ -63,7 +63,7 @@ object Main extends App {
           System.exit(1)
         }
 
-        val filesWithKtExtension = SourceFiles.determine(Set(sourceDir), Set(".kt"))
+        val filesWithKtExtension = SourceFiles.determine(List(sourceDir), Set(".kt"))
         if (filesWithKtExtension.isEmpty) {
           println("The provided input directory does not contain files ending in '.kt' `" + sourceDir + "`. Exiting.")
           System.exit(1)

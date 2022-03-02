@@ -114,7 +114,7 @@ object ProgramHandlingUtil {
     val archives = if (new File(sourceCodeDir).isFile) {
       List(sourceCodeDir)
     } else {
-      SourceFiles.determine(Set(sourceCodeDir), archiveFileExtensions)
+      SourceFiles.determine(List(sourceCodeDir), archiveFileExtensions)
     }
     archives.flatMap { x =>
       unzipArchive(new ZipFile(x), sourceCodeDir) match {

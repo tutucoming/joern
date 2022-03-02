@@ -92,7 +92,7 @@ class TestCpgGeneratorFactory(config: ConsoleConfig) extends CpgGeneratorFactory
           case List(h, t) if h == "--define" => t
         }
       val cpg =
-        c2cpg.runAndOutput(C2Cpg.Config(Set(inputPath), outputPath, defines = defines.toSet))
+        c2cpg.runAndOutput(C2Cpg.Config(List(inputPath), outputPath, defines = defines.toSet))
       cpg.close()
       Some(outputPath)
     }
@@ -105,7 +105,7 @@ class TestCpgGeneratorFactory(config: ConsoleConfig) extends CpgGeneratorFactory
 
     override def generate(inputPath: String, outputPath: String, namespaces: List[String]): Option[String] = {
       val fuzzyc = new FuzzyC2Cpg()
-      val cpg    = fuzzyc.runAndOutput(Set(inputPath), Set(".c"), Some(outputPath))
+      val cpg    = fuzzyc.runAndOutput(List(inputPath), Set(".c"), Some(outputPath))
       cpg.close()
       Some(outputPath)
     }

@@ -6,7 +6,7 @@ import org.jline.utils.Levenshtein
 
 import java.nio.file.Path
 
-class HeaderFileFinder(roots: Set[String]) {
+class HeaderFileFinder(roots: List[String]) {
 
   private val nameToPathMap: Map[String, List[Path]] = SourceFiles
     .determine(roots, FileDefaults.HEADER_FILE_EXTENSIONS)

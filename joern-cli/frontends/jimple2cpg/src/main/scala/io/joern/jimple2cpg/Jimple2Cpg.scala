@@ -119,7 +119,7 @@ class Jimple2Cpg {
   ): List[String] = {
     (
       extractSourceFilesFromArchive(sourceCodePath, archiveFileExtensions) ++
-        moveClassFiles(SourceFiles.determine(Set(sourceCodePath), sourceFileExtensions))
+        moveClassFiles(SourceFiles.determine(List(sourceCodePath), sourceFileExtensions))
     ).distinct
   }
 

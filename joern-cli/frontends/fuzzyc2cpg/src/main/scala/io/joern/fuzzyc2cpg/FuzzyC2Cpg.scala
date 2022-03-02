@@ -19,7 +19,7 @@ case class Global(usedTypes: ConcurrentHashMap[String, Boolean] = new Concurrent
 class FuzzyC2Cpg() {
 
   def runAndOutput(
-    sourcePaths: Set[String],
+    sourcePaths: List[String],
     sourceFileExtensions: Set[String],
     optionalOutputPath: Option[String] = None
   ): Cpg = {
@@ -45,12 +45,12 @@ object FuzzyC2Cpg {
   private val logger = LoggerFactory.getLogger(classOf[FuzzyC2Cpg])
 
   final case class Config(
-    inputPaths: Set[String] = Set.empty,
+    inputPaths: List[String] = List.empty,
     outputPath: String = X2CpgConfig.defaultOutputPath,
     sourceFileExtensions: Set[String] = Set(".c", ".cc", ".cpp", ".h", ".hpp")
   ) extends X2CpgConfig[Config] {
 
-    override def withAdditionalInputPath(inputPath: String): Config = copy(inputPaths = inputPaths + inputPath)
+    override def withAdditionalInputPath(inputPath: String): Config = copy(inputPaths = inputPaths.appended(inputPath))
     override def withOutputPath(x: String): Config                  = copy(outputPath = x)
   }
 

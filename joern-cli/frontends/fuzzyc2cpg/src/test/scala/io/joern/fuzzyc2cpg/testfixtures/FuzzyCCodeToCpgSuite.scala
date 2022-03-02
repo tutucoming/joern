@@ -11,7 +11,7 @@ class FuzzycFrontend extends LanguageFrontend {
     val cpgFile = File.createTempFile("fuzzyc", ".zip")
     cpgFile.deleteOnExit()
     val fuzzyc2Cpg = new FuzzyC2Cpg()
-    fuzzyc2Cpg.runAndOutput(Set(sourceCodePath.getAbsolutePath), Set(fileSuffix), Some(cpgFile.getAbsolutePath))
+    fuzzyc2Cpg.runAndOutput(List(sourceCodePath.getAbsolutePath), Set(fileSuffix), Some(cpgFile.getAbsolutePath))
   }
   override val fileSuffix: String = ".c"
 }
