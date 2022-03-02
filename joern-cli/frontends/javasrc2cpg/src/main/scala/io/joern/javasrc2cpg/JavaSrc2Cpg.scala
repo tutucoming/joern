@@ -27,21 +27,23 @@ class JavaSrc2Cpg {
   /** Create CPG for Java source code at `sourceCodePath` and store the CPG at `outputPath`. If `outputPath` is `None`,
     * the CPG is created in-memory.
     */
-  def createCpg(sourceCodePath: String, outputPath: Option[String] = None): Cpg = {
+  def createCpg(inputPaths: List[String], outputPath: Option[String] = None): Cpg = {
     val cpg             = newEmptyCpg(outputPath)
     val metaDataKeyPool = new IntervalKeyPool(1, 100)
-    val typesKeyPool    = new IntervalKeyPool(100, 1000100)
-    val methodKeyPool   = new IntervalKeyPool(first = 1000100, last = Long.MaxValue)
+    val typesKeyPool    = new IntervalKeyPool(100, 1000100).split(inputPaths.size)
+    val methodKeyPools  = new IntervalKeyPool(first = 1000100, last = Long.MaxValue).split(inputPaths.size)
 
     new MetaDataPass(cpg, language, Some(metaDataKeyPool)).createAndApply()
+    val keyPools = methodKeyPools.zip(typesKeyPool)
 
-    val (sourcesDir, sourceFileNames) = getSourcesFromDir(sourceCodePath)
-    val astCreator                    = new AstCreationPass(sourcesDir, sourceFileNames, cpg, methodKeyPool)
-    astCreator.createAndApply()
+    inputPaths.map(getSourcesFromDir).zip(keyPools).foreach {
+      case ((sourcesDir, sourceFileNames), (methodKeyPool, typeKeyPool)) =>
+        val astCreator = new AstCreationPass(sourcesDir, sourceFileNames, cpg, methodKeyPool)
+        astCreator.createAndApply()
 
-    new TypeNodePass(astCreator.global.usedTypes.keys().asScala.toList, cpg, Some(typesKeyPool))
-      .createAndApply()
-
+        new TypeNodePass(astCreator.global.usedTypes.keys().asScala.toList, cpg, Some(typeKeyPool))
+          .createAndApply()
+    }
     cpg
   }
 

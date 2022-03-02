@@ -5,11 +5,11 @@ import scopt.OParser
 
 /** Command line configuration parameters
   */
-final case class Config(inputPaths: Set[String] = Set.empty, outputPath: String = X2CpgConfig.defaultOutputPath)
+final case class Config(inputPaths: List[String] = List.empty, outputPath: String = X2CpgConfig.defaultOutputPath)
     extends X2CpgConfig[Config] {
 
   override def withAdditionalInputPath(inputPath: String): Config =
-    copy(inputPaths = inputPaths + inputPath)
+    copy(inputPaths = inputPaths.appended(inputPath))
   override def withOutputPath(x: String): Config = copy(outputPath = x)
 }
 
@@ -25,13 +25,8 @@ object Main extends App {
 
   X2Cpg.parseCommandLine(args, frontendSpecificOptions, Config()) match {
     case Some(config) =>
-      if (config.inputPaths.size == 1) {
-        val cpg = new JavaSrc2Cpg().createCpg(config.inputPaths.head, Some(config.outputPath))
-        cpg.close()
-      } else {
-        println("This frontend requires exactly one input path")
-        System.exit(1)
-      }
+      val cpg = new JavaSrc2Cpg().createCpg(config.inputPaths, Some(config.outputPath))
+      cpg.close()
     case None =>
       System.exit(1)
   }

@@ -14,7 +14,7 @@ class JavaSrc2CpgTestContext {
   def buildCpg(runDataflow: Boolean): Cpg = {
     if (buildResult.isEmpty) {
       val javaSrc2Cpg = JavaSrc2Cpg()
-      val cpg         = javaSrc2Cpg.createCpg(writeCodeToFile(code).getAbsolutePath)
+      val cpg         = javaSrc2Cpg.createCpg(List(writeCodeToFile(code).getAbsolutePath))
       val context     = new LayerCreatorContext(cpg)
       new Base().run(context)
       new TypeRelations().run(context)
