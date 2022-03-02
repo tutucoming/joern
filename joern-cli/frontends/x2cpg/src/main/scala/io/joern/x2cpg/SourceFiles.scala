@@ -21,4 +21,9 @@ object SourceFiles {
 
     (matchingFiles ++ matchingFilesFromDirs).sorted
   }
+
+  @deprecated("use `determine(inputPaths : List[String], ...)` instead", "March 2022")
+  def determine(inputPaths: Set[String], sourceFileExtensions: Set[String]): List[String] =
+    determine(inputPaths.toList, sourceFileExtensions)
+
 }
