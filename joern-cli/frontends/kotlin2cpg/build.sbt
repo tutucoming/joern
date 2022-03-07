@@ -15,6 +15,9 @@ libraryDependencies ++= Seq(
   "org.jetbrains.kotlin"     % "kotlin-stdlib"      % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-compiler-embeddable"    % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-allopen"       % kotlinVersion,
+  "org.jetbrains.kotlin"     % "kotlin-gradle-plugin" % kotlinVersion,
+  "org.jetbrains.kotlin"     % "kotlin-parcelize-compiler" % kotlinVersion,
+  "org.jetbrains.kotlin"     % "kotlin-android-extensions" % kotlinVersion,
   "org.jetbrains.kotlin"     % "kotlin-test"        % kotlinVersion  % Test
 )
 
