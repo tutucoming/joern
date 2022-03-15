@@ -8,8 +8,8 @@ import io.joern.ghidra2cpg.utils.Nodes._
 import io.shiftleft.codepropertygraph.Cpg
 import io.shiftleft.codepropertygraph.generated.{EdgeTypes, nodes}
 import io.shiftleft.codepropertygraph.generated.nodes.{NewBlock, NewMethod}
-
 import scala.language.implicitConversions
+
 class X86FunctionPass(
   currentProgram: Program,
   filename: String,
@@ -27,13 +27,13 @@ class X86FunctionPass(
     val instructions = getInstructions(function)
     if (instructions.nonEmpty) {
       var prevInstructionNode = addCallOrReturnNode(instructions.head)
-      handleArguments(diffGraphBuilder, instructions.head, prevInstructionNode)
+      handleArguments(diffGraphBuilder, instructions.head, prevInstructionNode, None)
       diffGraphBuilder.addEdge(blockNode, prevInstructionNode, EdgeTypes.AST)
       diffGraphBuilder.addEdge(methodNode, prevInstructionNode, EdgeTypes.CFG)
       instructions.drop(1).foreach { instruction =>
         val instructionNode = addCallOrReturnNode(instruction)
         diffGraphBuilder.addNode(instructionNode)
-        handleArguments(diffGraphBuilder, instruction, instructionNode)
+        handleArguments(diffGraphBuilder, instruction, instructionNode, None)
         diffGraphBuilder.addEdge(blockNode, instructionNode, EdgeTypes.AST)
         // Not connecting the previous instruction,
         // if it is an unconditional jump

@@ -2,15 +2,7 @@ package io.joern.ghidra2cpg.passes
 
 import ghidra.program.model.address.GenericAddress
 import ghidra.program.model.lang.Register
-import ghidra.program.model.listing.{
-  CodeUnitFormat,
-  CodeUnitFormatOptions,
-  Function,
-  FunctionIterator,
-  Instruction,
-  Listing,
-  Program
-}
+import ghidra.program.model.listing.{CodeUnitFormat, CodeUnitFormatOptions, Function, Instruction, Program}
 import ghidra.program.model.pcode.HighFunction
 import ghidra.program.model.scalar.Scalar
 import io.joern.ghidra2cpg._
@@ -19,7 +11,7 @@ import io.joern.ghidra2cpg.utils.Nodes._
 import io.shiftleft.codepropertygraph.Cpg
 import io.shiftleft.codepropertygraph.generated.nodes.{CfgNodeNew, NewBlock, NewMethod}
 import io.shiftleft.codepropertygraph.generated.{EdgeTypes, nodes}
-import io.shiftleft.passes.{ConcurrentWriterCpgPass, DiffGraph, IntervalKeyPool, ParallelCpgPass}
+import io.shiftleft.passes.ConcurrentWriterCpgPass
 
 import scala.jdk.CollectionConverters._
 import scala.language.implicitConversions
@@ -124,13 +116,13 @@ abstract class FunctionPass(
     val instructions = getInstructions(function)
     if (instructions.nonEmpty) {
       var prevInstructionNode = addCallOrReturnNode(instructions.head)
-      handleArguments(diffGraphBuilder, instructions.head, prevInstructionNode)
+      handleArguments(diffGraphBuilder, instructions.head, prevInstructionNode, None)
       diffGraphBuilder.addEdge(blockNode, prevInstructionNode, EdgeTypes.AST)
       diffGraphBuilder.addEdge(methodNode, prevInstructionNode, EdgeTypes.CFG)
       instructions.drop(1).foreach { instruction =>
         val instructionNode = addCallOrReturnNode(instruction)
         diffGraphBuilder.addNode(instructionNode)
-        handleArguments(diffGraphBuilder, instruction, instructionNode)
+        handleArguments(diffGraphBuilder, instruction, instructionNode, None)
         diffGraphBuilder.addEdge(blockNode, instructionNode, EdgeTypes.AST)
         diffGraphBuilder.addEdge(prevInstructionNode, instructionNode, EdgeTypes.CFG)
         prevInstructionNode = instructionNode
@@ -139,7 +131,7 @@ abstract class FunctionPass(
   }
 
   // Iterating over operands and add edges to call
-  def handleArguments(diffGraphBuilder: DiffGraphBuilder, instruction: Instruction, callNode: CfgNodeNew): Unit = {
+  def handleArguments(diffGraphBuilder: DiffGraphBuilder, instruction: Instruction, callNode: CfgNodeNew, highFunction: Option[HighFunction]): Unit = {
     val mnemonicString = processor.getInstructions(instruction.getMnemonicString)
     if (mnemonicString.equals("CALL")) {
       val calledFunction =
