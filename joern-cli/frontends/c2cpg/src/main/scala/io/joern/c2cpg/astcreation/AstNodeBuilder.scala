@@ -40,7 +40,6 @@ trait AstNodeBuilder {
     NewCall()
       .name(name)
       .dispatchType(dispatchType)
-      .signature("TODO")
       .methodFullName(fullname)
       .code(nodeSignature(astNode))
       .order(order)

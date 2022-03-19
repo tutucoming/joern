@@ -7,7 +7,6 @@ import com.github.javaparser.ast.body.{
   ConstructorDeclaration,
   EnumConstantDeclaration,
   FieldDeclaration,
-  InitializerDeclaration,
   MethodDeclaration,
   Parameter,
   TypeDeclaration,

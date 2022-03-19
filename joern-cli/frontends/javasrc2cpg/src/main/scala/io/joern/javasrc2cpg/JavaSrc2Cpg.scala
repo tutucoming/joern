@@ -20,36 +20,33 @@ object JavaSrc2Cpg {
 class JavaSrc2Cpg extends X2CpgFrontend[Config] {
 
   import JavaSrc2Cpg._
-
   val sourceFileExtensions = Set(".java")
+  private case class DirAndItsFilenames(dir: String, filenames: List[String]) {}
 
   def createCpg(config: Config): Try[Cpg] = {
     withNewEmptyCpg(config.outputPath, config: Config) { (cpg, config) =>
-      if (config.inputPaths.size != 1) {
-        throw new RuntimeException("This frontend requires exactly one input path")
-      }
-      val sourceCodePath = config.inputPaths.head
       new MetaDataPass(cpg, language).createAndApply()
-      val (sourcesDir, sourceFileNames) = getSourcesFromDir(sourceCodePath)
-      val astCreator                    = new AstCreationPass(sourcesDir, sourceFileNames, cpg)
-      astCreator.createAndApply()
-      new TypeNodePass(astCreator.global.usedTypes.keys().asScala.toList, cpg)
-        .createAndApply()
+      config.inputPaths.foreach { inputPath =>
+        val filenamesForDir = getSourcesFromDir(inputPath)
+        val astCreator      = new AstCreationPass(filenamesForDir.dir, filenamesForDir.filenames, cpg)
+        astCreator.createAndApply()
+        new TypeNodePass(astCreator.global.usedTypes.keys().asScala.toList, cpg)
+          .createAndApply()
+      }
     }
   }
 
   /** JavaParser requires that the input path is a directory and not a single source file. This is inconvenient for
     * small-scale testing, so if a single source file is created, copy it to a temp directory.
     */
-  private def getSourcesFromDir(sourceCodePath: String): (String, List[String]) = {
+  private def getSourcesFromDir(sourceCodePath: String): DirAndItsFilenames = {
     val sourceFile = File(sourceCodePath)
     if (sourceFile.isDirectory) {
       val sourceFileNames = SourceFiles.determine(Set(sourceCodePath), sourceFileExtensions)
-      (sourceCodePath, sourceFileNames)
+      DirAndItsFilenames(sourceCodePath, sourceFileNames)
     } else {
-      val dir = File.newTemporaryDirectory("javasrc").deleteOnExit()
-      sourceFile.copyToDirectory(dir).deleteOnExit()
-      (dir.pathAsString, List(sourceFile.pathAsString))
+      val dir = SourceFiles.placeFileInTmpDir(sourceCodePath)
+      DirAndItsFilenames(dir.pathAsString, List(sourceFile.pathAsString))
     }
   }
 
