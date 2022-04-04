@@ -97,7 +97,6 @@ import io.shiftleft.codepropertygraph.generated.nodes.{
   NewMethod,
   NewMethodParameterIn,
   NewMethodRef,
-  NewMethodReturn,
   NewModifier,
   NewNamespaceBlock,
   NewNode,

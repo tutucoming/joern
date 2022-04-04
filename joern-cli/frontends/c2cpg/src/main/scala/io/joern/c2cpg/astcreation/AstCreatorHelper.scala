@@ -410,12 +410,9 @@ trait AstCreatorHelper {
       .argumentIndex(1)
       .typeFullName("ANY")
 
-    val methodReturn = NewMethodReturn()
-      .code("RET")
-      .evaluationStrategy(EvaluationStrategies.BY_VALUE)
-      .typeFullName("ANY")
-      .order(2)
-    Ast(fakeStaticInitMethod).withChild(Ast(blockNode).withChildren(childrenAsts)).withChild(Ast(methodReturn))
+    val methodReturn = methodReturnNode(None, None, 2)
+    val body         = Ast(blockNode).withChildren(childrenAsts)
+    methodAst(fakeStaticInitMethod, List(), body, methodReturn)
   }
 
   protected def astForNode(node: IASTNode, order: Int): Ast = {

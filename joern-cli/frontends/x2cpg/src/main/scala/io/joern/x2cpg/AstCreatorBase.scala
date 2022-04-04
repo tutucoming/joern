@@ -3,13 +3,19 @@ package io.joern.x2cpg
 import io.joern.x2cpg.passes.frontend.MetaDataPass
 import io.shiftleft.codepropertygraph.generated.EvaluationStrategies
 import io.shiftleft.codepropertygraph.generated.nodes.{
+  NewCall,
   NewMethod,
   NewMethodParameterIn,
   NewMethodReturn,
-  NewNamespaceBlock
+  NewNamespaceBlock,
+  NewNode
 }
 import io.shiftleft.semanticcpg.language.types.structure.NamespaceTraversal
 import overflowdb.BatchedUpdate.DiffGraphBuilder
+
+object Constants {
+  val retCode = "RET"
+}
 
 abstract class AstCreatorBase(filename: String) {
   val diffGraph: DiffGraphBuilder = new DiffGraphBuilder
@@ -52,7 +58,12 @@ abstract class AstCreatorBase(filename: String) {
 
   /** Create a method return node
     */
-  def methodReturnNode(line: Option[Integer], column: Option[Integer], order: Int, tpe: String): NewMethodReturn =
+  def methodReturnNode(
+    line: Option[Integer],
+    column: Option[Integer],
+    order: Int,
+    tpe: String = Constants.retCode
+  ): NewMethodReturn =
     NewMethodReturn()
       .order(order)
       .typeFullName(tpe)

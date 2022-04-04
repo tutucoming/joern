@@ -677,6 +677,7 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
           val methodBlockAst =
             Ast(methodBlock)
               .withChild(returnAst)
+
           val methodReturn =
             NewMethodReturn()
               .evaluationStrategy(EvaluationStrategies.BY_VALUE)

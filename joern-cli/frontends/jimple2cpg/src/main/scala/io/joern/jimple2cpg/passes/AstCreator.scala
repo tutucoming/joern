@@ -848,13 +848,7 @@ class AstCreator(filename: String, cls: SootClass, global: Global) extends AstCr
 
   private def astForMethodReturn(methodDeclaration: SootMethod): Ast = {
     val typeFullName = registerType(methodDeclaration.getReturnType.toQuotedString)
-    val methodReturnNode =
-      NewMethodReturn()
-        .order(methodDeclaration.getParameterCount + 2)
-        .typeFullName(typeFullName)
-        .code(typeFullName)
-        .lineNumber(line(methodDeclaration))
-    Ast(methodReturnNode)
+    Ast(methodReturnNode(line(methodDeclaration), None, methodDeclaration.getParameterCount + 2, typeFullName))
   }
 
   private def createMethodNode(methodDeclaration: SootMethod, typeDecl: RefType, childNum: Int) = {
