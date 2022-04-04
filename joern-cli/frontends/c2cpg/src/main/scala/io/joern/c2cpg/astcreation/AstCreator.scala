@@ -120,11 +120,9 @@ class AstCreator(val filename: String, val config: Config, val global: CGlobal, 
       .typeFullName("ANY")
       .order(2)
 
-    Ast(fakeGlobalTypeDecl).withChild(
-      Ast(fakeGlobalMethod)
-        .withChild(Ast(blockNode).withChildren(declsAsts))
-        .withChild(Ast(methodReturn))
-    )
+    val body          = Ast(blockNode).withChildren(declsAsts)
+    val fakeMethodAst = methodAst(fakeGlobalMethod, List(), body, methodReturn)
+    Ast(fakeGlobalTypeDecl).withChild(fakeMethodAst)
   }
 
 }
