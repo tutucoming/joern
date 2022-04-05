@@ -1,5 +1,6 @@
 package io.joern.x2cpg.passes.base
 
+import io.joern.x2cpg.AstSubGraphCreator
 import io.shiftleft.codepropertygraph.Cpg
 import io.shiftleft.codepropertygraph.generated.nodes._
 import io.shiftleft.codepropertygraph.generated.{EdgeTypes, EvaluationStrategies, NodeTypes}
@@ -82,13 +83,7 @@ class MethodStubCreator(cpg: Cpg) extends SimpleCpgPass(cpg) {
 
     (1 to parameterCount).foreach { parameterOrder =>
       val nameAndCode = s"p$parameterOrder"
-      val param = NewMethodParameterIn()
-        .code(nameAndCode)
-        .order(parameterOrder)
-        .name(nameAndCode)
-        .evaluationStrategy(EvaluationStrategies.BY_VALUE)
-        .typeFullName("ANY")
-
+      val param       = AstSubGraphCreator.parameter(nameAndCode, parameterOrder)
       dstGraph.addNode(param)
       dstGraph.addEdge(methodNode, param, EdgeTypes.AST)
     }

@@ -2,7 +2,7 @@ package io.joern.c2cpg.astcreation
 
 import io.shiftleft.codepropertygraph.generated.EvaluationStrategies
 import io.shiftleft.codepropertygraph.generated.nodes._
-import io.joern.x2cpg.Ast
+import io.joern.x2cpg.{Ast, AstSubGraphCreator}
 import org.eclipse.cdt.core.dom.ast._
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTLambdaExpression
 import org.eclipse.cdt.core.dom.ast.gnu.c.ICASTKnRFunctionDeclarator
@@ -10,6 +10,7 @@ import org.eclipse.cdt.internal.core.dom.parser.c.{CASTFunctionDeclarator, CASTP
 import org.eclipse.cdt.internal.core.dom.parser.cpp.{CPPASTFunctionDeclarator, CPPASTParameterDeclaration}
 import org.eclipse.cdt.internal.core.model.ASTStringUtil
 import io.joern.x2cpg.datastructures.Stack._
+import io.joern.x2cpg.AstSubGraphCreator._
 
 import scala.annotation.tailrec
 
@@ -281,6 +282,6 @@ trait AstForFunctionsCreator {
   }
 
   private def methodReturnNode(func: IASTNode, order: Int, tpe: String): NewMethodReturn =
-    methodReturnNode(line(func), column(func), order, registerType(tpe))
+    AstSubGraphCreator.methodReturnNode(line(func), column(func), order, registerType(tpe))
 
 }

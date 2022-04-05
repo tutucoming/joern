@@ -13,6 +13,7 @@ import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.mutable
+import io.joern.x2cpg.AstSubGraphCreator._
 
 /** Translates the Eclipse CDT AST into a CPG AST.
   */
