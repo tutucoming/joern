@@ -132,4 +132,30 @@ class IdentifierReferencesTests extends AnyFreeSpec with Matchers {
       param.referencingIdentifiers.toSet should not be Set()
     }
   }
+
+  "CPG for code with object-expression with method capturing identifiers from a parent method scope" - {
+    lazy val cpg = TestContext.buildCpg("""
+      |package mypkg
+      |
+      |fun main() {
+      |    val aMessage = "AMESSAGE"
+      |    val anObject =
+      |      object {
+      |          fun doubleStr(): String {
+      |              val out = aMessage + aMessage
+      |              return out
+      |          }
+      |      }
+      |    val out = anObject.doubleStr()
+      |    println(out)
+      |}
+      |""".stripMargin)
+
+    "should contain the the correct number of references for the captured identifiers" in {
+      val List(argOne: Identifier, argTwo: Identifier) =
+        cpg.identifier.nameExact("aMessage").where(_.inCall.methodFullName(Operators.plus)).l
+      argOne.refsTo.size shouldBe 1
+      argTwo.refsTo.size shouldBe 1
+    }
+  }
 }
