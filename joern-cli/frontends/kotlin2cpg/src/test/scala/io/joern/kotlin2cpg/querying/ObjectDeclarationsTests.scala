@@ -23,32 +23,32 @@ class ObjectDeclarationsTests extends AnyFreeSpec with Matchers {
         |""".stripMargin)
 
     "should contain a TYPE_DECL node for the object declaration with the correct properties set" in {
-      val List(x) = cpg.typeDecl.isExternal(false).name("Foo").l
-      x.name shouldBe "Foo"
-      x.code shouldBe "Foo"
-      x.fullName shouldBe "mypkg.Foo"
-      x.inheritsFromTypeFullName shouldBe List("java.lang.Object")
-      x.isExternal shouldBe false
-      x.lineNumber shouldBe Some(3)
-      x.columnNumber shouldBe Some(7)
+      val List(td) = cpg.typeDecl.name("Foo").l
+      td.name shouldBe "Foo"
+      td.code shouldBe "Foo"
+      td.fullName shouldBe "mypkg.Foo"
+      td.inheritsFromTypeFullName shouldBe List("java.lang.Object")
+      td.isExternal shouldBe false
+      td.lineNumber shouldBe Some(3)
+      td.columnNumber shouldBe Some(7)
     }
 
     "should contain MEMBER node for `bar` with correct properties" in {
-      val List(x) = cpg.member("bar").l
-      x.name shouldBe "bar"
-      x.code shouldBe "bar"
-      x.typeFullName shouldBe "java.lang.String"
-      x.lineNumber shouldBe Some(4)
-      x.columnNumber shouldBe Some(8)
+      val List(m) = cpg.member("bar").l
+      m.name shouldBe "bar"
+      m.code shouldBe "bar"
+      m.typeFullName shouldBe "java.lang.String"
+      m.lineNumber shouldBe Some(4)
+      m.columnNumber shouldBe Some(8)
     }
 
     "should contain MEMBER node for `baz` with correct properties" in {
-      val List(x) = cpg.member("baz").l
-      x.name shouldBe "baz"
-      x.code shouldBe "baz"
-      x.typeFullName shouldBe "java.lang.String"
-      x.lineNumber shouldBe Some(5)
-      x.columnNumber shouldBe Some(8)
+      val List(m) = cpg.member("baz").l
+      m.name shouldBe "baz"
+      m.code shouldBe "baz"
+      m.typeFullName shouldBe "java.lang.String"
+      m.lineNumber shouldBe Some(5)
+      m.columnNumber shouldBe Some(8)
     }
 
     "should contain a CALL node for the call to `moo` with the correct properties set" in {
@@ -110,13 +110,13 @@ class ObjectDeclarationsTests extends AnyFreeSpec with Matchers {
         |""".stripMargin)
 
     "should contain a TYPE_DECL node for the object declaration with the correct properties set" in {
-      val List(x) = cpg.typeDecl.isExternal(false).name("Prefs").l
-      x.name shouldBe "Prefs"
-      x.fullName shouldBe "mypkg.Prefs"
-      x.inheritsFromTypeFullName shouldBe List("java.lang.Object")
-      x.isExternal shouldBe false
-      x.lineNumber shouldBe Some(6)
-      x.columnNumber shouldBe Some(7)
+      val List(td) = cpg.typeDecl.name("Prefs").l
+      td.name shouldBe "Prefs"
+      td.fullName shouldBe "mypkg.Prefs"
+      td.inheritsFromTypeFullName shouldBe List("java.lang.Object")
+      td.isExternal shouldBe false
+      td.lineNumber shouldBe Some(6)
+      td.columnNumber shouldBe Some(7)
     }
   }
 }

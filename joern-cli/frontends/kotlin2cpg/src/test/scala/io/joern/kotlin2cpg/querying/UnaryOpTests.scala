@@ -23,33 +23,10 @@ class UnaryOpTests extends AnyFreeSpec with Matchers {
         |}
         |""".stripMargin)
 
-    "should contain correct number of calls" in {
-      cpg.call.size should not be 0
-    }
-
-    "should contain a call node for the `plus` operator" in {
-      cpg.call(Operators.plus).size should not be 0
-    }
-
-    "should contain a call node for the `minus` operator" in {
-      cpg.call(Operators.minus).size should not be 0
-    }
-
-    "should contain a call node for the `logicalNot` operator" in {
-      cpg.call(Operators.logicalNot).size should not be 0
-    }
-
-    "should contain a call node for the `preIncrement` operator" in {
-      cpg.call(Operators.preIncrement).size should not be 0
-    }
-
-    "should contain a call node for the `preDecrement` operator" in {
-      cpg.call(Operators.preDecrement).size should not be 0
-    }
-
     "should contain a call node for `plus` op with correct fields" in {
       val List(c) = cpg.call(Operators.plus).l
       c.code shouldBe "+x"
+      c.name shouldBe Operators.plus
       c.typeFullName shouldBe "java.lang.Integer"
       c.dispatchType shouldBe DispatchTypes.STATIC_DISPATCH
       c.lineNumber shouldBe Some(4)
@@ -60,6 +37,7 @@ class UnaryOpTests extends AnyFreeSpec with Matchers {
     "should contain a call node for `minus` op with correct fields" in {
       val List(c) = cpg.call(Operators.minus).l
       c.code shouldBe "-x"
+      c.name shouldBe Operators.minus
       c.typeFullName shouldBe "java.lang.Integer"
       c.dispatchType shouldBe DispatchTypes.STATIC_DISPATCH
       c.lineNumber shouldBe Some(5)
@@ -70,6 +48,7 @@ class UnaryOpTests extends AnyFreeSpec with Matchers {
     "should contain a call node for `logicalNot` op with correct fields" in {
       val List(c) = cpg.call(Operators.logicalNot).l
       c.code shouldBe "!y"
+      c.name shouldBe Operators.logicalNot
       c.typeFullName shouldBe "java.lang.Boolean"
       c.dispatchType shouldBe DispatchTypes.STATIC_DISPATCH
       c.lineNumber shouldBe Some(6)
@@ -80,6 +59,7 @@ class UnaryOpTests extends AnyFreeSpec with Matchers {
     "should contain a call node for `preIncrement` op with correct fields" in {
       val List(c) = cpg.call(Operators.preIncrement).l
       c.code shouldBe "++x"
+      c.name shouldBe Operators.preIncrement
       c.typeFullName shouldBe "java.lang.Integer"
       c.dispatchType shouldBe DispatchTypes.STATIC_DISPATCH
       c.lineNumber shouldBe Some(7)
@@ -90,6 +70,7 @@ class UnaryOpTests extends AnyFreeSpec with Matchers {
     "should contain a call node for `preDecrement` op with correct fields" in {
       val List(c) = cpg.call(Operators.preDecrement).l
       c.code shouldBe "--x"
+      c.name shouldBe Operators.preDecrement
       c.typeFullName shouldBe "java.lang.Integer"
       c.dispatchType shouldBe DispatchTypes.STATIC_DISPATCH
       c.lineNumber shouldBe Some(8)
@@ -100,6 +81,7 @@ class UnaryOpTests extends AnyFreeSpec with Matchers {
     "should contain a call node for `postIncrement` op with correct fields" in {
       val List(c) = cpg.call(Operators.postIncrement).l
       c.code shouldBe "x++"
+      c.name shouldBe Operators.postIncrement
       c.typeFullName shouldBe "java.lang.Integer"
       c.dispatchType shouldBe DispatchTypes.STATIC_DISPATCH
       c.lineNumber shouldBe Some(9)
@@ -110,6 +92,7 @@ class UnaryOpTests extends AnyFreeSpec with Matchers {
     "should contain a call node for `postDecrement` op with the correct props set" in {
       val List(c) = cpg.call(Operators.postDecrement).l
       c.code shouldBe "x--"
+      c.name shouldBe Operators.postDecrement
       c.typeFullName shouldBe "java.lang.Integer"
       c.dispatchType shouldBe DispatchTypes.STATIC_DISPATCH
       c.lineNumber shouldBe Some(10)
