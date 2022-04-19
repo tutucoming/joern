@@ -3,7 +3,6 @@ package io.joern.kotlin2cpg.passes
 import io.joern.kotlin2cpg.KtFileWithMeta
 import io.joern.kotlin2cpg.ast.Nodes._
 import io.joern.kotlin2cpg.ast.Nodes.{methodReturnNode => _methodReturnNode}
-
 import io.joern.kotlin2cpg.types.{CallKinds, NameReferenceKinds, TypeConstants, TypeInfoProvider}
 import io.joern.kotlin2cpg.psi.Extractor._
 import io.shiftleft.codepropertygraph.generated.nodes._
@@ -855,61 +854,15 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
       }.flatten
 
     val childrenCtx = mergedCtx(expressions.map(_.ctx))
-    val localExprs =
-      expressions
-        .filter { expr =>
-          expr.ast.root.get.isInstanceOf[NewLocal]
-        }
-        .map { expr =>
-          expr.ast.root.get.asInstanceOf[NewLocal]
-        } ++ scopeContext.additionalLocals
-
-    val identifiersMatchingLocals =
-      childrenCtx.identifiers
-        .filter { identifier =>
-          localExprs.map(_.name).contains(identifier.name)
-        }
-        .map { identifier =>
-          val matchingLocal = localExprs.filter { _.name == identifier.name }.head
-          (identifier, matchingLocal)
-        }
-
-    val identifiersMatchingMethodParam =
-      childrenCtx.identifiers
-        .filter { identifier =>
-          scopeContext.methodParameters.map(_.name).contains(identifier.name)
-        }
-        .map { identifier =>
-          val matchingMethodParam = scopeContext.methodParameters.filter { mp => mp.name == identifier.name }.head
-          (identifier, matchingMethodParam)
-        }
-    val identifiersNotMatchingLocals =
-      childrenCtx.identifiers
-        .filterNot { identifier =>
-          localExprs.map(_.name).contains(identifier.name)
-        }
-        .filter { identifier =>
-          !identifiersMatchingMethodParam.contains(identifier.name)
-        }
-
     val childrenCtxMinusMatchedIdentifiers =
-      Context(
-        childrenCtx.locals,
-        identifiersNotMatchingLocals,
-        childrenCtx.methodParameters,
+      Context(List(), List(), List(),
         childrenCtx.bindingsInfo,
         childrenCtx.lambdaAsts,
         childrenCtx.closureBindingInfo,
-        childrenCtx.lambdaBindingInfo
-      )
+        childrenCtx.lambdaBindingInfo)
     val ast = Ast(block)
       .withChildren(expressions.map(_.ast))
-    val astWithRefEdges =
-      (identifiersMatchingLocals ++ identifiersMatchingMethodParam)
-        .foldLeft(ast)((acc, nodes) => {
-          acc.withRefEdge(nodes._1, nodes._2)
-        })
-    AstWithCtx(astWithRefEdges, childrenCtxMinusMatchedIdentifiers)
+    AstWithCtx(ast, childrenCtxMinusMatchedIdentifiers)
   }
 
   private def astsForReturnExpression(expr: KtReturnExpression, scopeContext: Context, order: Int)(implicit
@@ -1105,7 +1058,6 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
     fileInfo: FileInfo,
     typeInfoProvider: TypeInfoProvider
   ): AstWithCtx = {
-
     val parametersWithCtx =
       withOrder(expr.getValueParameters) { (p, order) =>
         astForParameter(p, order)
@@ -3268,6 +3220,7 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
     val parameterNode =
       methodParameterNode(name, typeFullName, line(param), column(param))
         .order(childNum)
-    AstWithCtx(Ast(parameterNode), Context(List(), List(), List(parameterNode)))
+    scope.addToScope(name, parameterNode)
+    AstWithCtx(Ast(parameterNode), Context())
   }
 }
