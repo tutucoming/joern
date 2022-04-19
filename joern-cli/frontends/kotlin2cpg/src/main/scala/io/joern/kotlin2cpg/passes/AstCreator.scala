@@ -705,7 +705,6 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
         ""
       }
     val fnWithSig = typeInfoProvider.fullNameWithSignature(ktFn, ("", ""))
-    val code      = returnTypeName + "(" + paramTypesWithName.mkString(", ") + ")"
 
     val _methodNode =
       methodNode(ktFn.getName, fnWithSig._1, fnWithSig._2, relativizedPath, line(ktFn), column(ktFn))
