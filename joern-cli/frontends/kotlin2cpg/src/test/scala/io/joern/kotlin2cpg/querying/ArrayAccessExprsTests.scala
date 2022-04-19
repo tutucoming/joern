@@ -38,6 +38,7 @@ class ArrayAccessExprsTests extends AnyFreeSpec with Matchers {
       secondArg.argumentIndex shouldBe 2
       secondArg.code shouldBe "\"one\""
       secondArg.lineNumber shouldBe c.lineNumber
+      firstArg.refsTo.size shouldBe 1
     }
   }
 

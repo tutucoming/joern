@@ -4,10 +4,32 @@ import io.joern.kotlin2cpg.TestContext
 import io.shiftleft.codepropertygraph.generated.Operators
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import io.shiftleft.codepropertygraph.generated.nodes.{Identifier, Local}
+import io.shiftleft.codepropertygraph.generated.nodes.{Identifier, Local, NewLocal}
 import io.shiftleft.semanticcpg.language._
 
 class IdentifierReferencesTests extends AnyFreeSpec with Matchers {
+
+  "CPG for code with simple identifiers referencing locals" - {
+    lazy val cpg = TestContext.buildCpg("""
+        |package mypkg
+        |
+        |fun main() {
+        |    val aMessage = "AMESSAGE"
+        |    println(aMessage)
+        |}
+        |""".stripMargin)
+
+    "should contain references to a LOCAL node" in {
+      val List(first: Identifier, second: Identifier) = cpg.identifier.nameExact("aMessage").l
+      first.refsTo.size shouldBe 1
+      second.refsTo.size shouldBe 1
+
+      val List(l) = cpg.local.nameExact("aMessage").l
+      l.referencingIdentifiers.id.l.contains(first.id) shouldBe true
+      l.referencingIdentifiers.id.l.contains(second.id) shouldBe true
+    }
+  }
+
   "CPG for code with shadowed local inside lambda" - {
     lazy val cpg = TestContext.buildCpg("""
         |package main
@@ -28,12 +50,12 @@ class IdentifierReferencesTests extends AnyFreeSpec with Matchers {
 
     "should contain LOCAL nodes with correctly-set referencing IDENTIFIERS" in {
       val List(outerScopeX: Local) = cpg.local.nameExact("x").take(1).l
-      outerScopeX.referencingIdentifiers.size shouldBe 3 // TODO: fix, it should be `2`, not `3`
-      outerScopeX.referencingIdentifiers.lineNumber.l shouldBe List(4, 4, 6)
+      outerScopeX.referencingIdentifiers.size shouldBe 2
+      outerScopeX.referencingIdentifiers.lineNumber.l shouldBe List(4, 6)
 
       val List(innerScopeX: Local) = cpg.local.nameExact("x").drop(1).take(1).l
-      innerScopeX.referencingIdentifiers.size shouldBe 3 // TODO: fix, it should be `2`, not `3`
-      innerScopeX.referencingIdentifiers.lineNumber.l shouldBe List(7, 7, 9)
+      innerScopeX.referencingIdentifiers.size shouldBe 2
+      innerScopeX.referencingIdentifiers.lineNumber.l shouldBe List(7, 9)
     }
   }
 
@@ -53,7 +75,7 @@ class IdentifierReferencesTests extends AnyFreeSpec with Matchers {
         .nameExact("x")
         .typeFullName("java.lang.Integer")
         .referencingIdentifiers
-        .size shouldBe 3 // TODO: fix, it should be `2`, not `3`
+        .size shouldBe 2
     }
 
     "should contain a local outside the scope function with a single referenced identifier" in {
@@ -61,7 +83,7 @@ class IdentifierReferencesTests extends AnyFreeSpec with Matchers {
         .nameExact("x")
         .typeFullName("java.lang.String")
         .referencingIdentifiers
-        .size shouldBe 2 // TODO: fix, it should be `1`, not `2`
+        .size shouldBe 1
     }
   }
 

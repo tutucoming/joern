@@ -17,8 +17,6 @@ class LambdaTests extends AnyFreeSpec with Matchers {
     lazy val cpg = TestContext.buildCpg("""
         |package mypkg
         |
-        |import kotlin.collections.List
-        |
         |fun foo(x: String): Int {
         |    1.let {
         |       println(x)
