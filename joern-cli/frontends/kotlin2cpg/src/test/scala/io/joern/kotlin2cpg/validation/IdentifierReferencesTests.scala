@@ -4,10 +4,32 @@ import io.joern.kotlin2cpg.TestContext
 import io.shiftleft.codepropertygraph.generated.Operators
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import io.shiftleft.codepropertygraph.generated.nodes.{Identifier, Local}
+import io.shiftleft.codepropertygraph.generated.nodes.{Identifier, Local, NewLocal}
 import io.shiftleft.semanticcpg.language._
 
 class IdentifierReferencesTests extends AnyFreeSpec with Matchers {
+
+  "CPG for code with simple identifiers referencing locals" - {
+    lazy val cpg = TestContext.buildCpg("""
+        |package mypkg
+        |
+        |fun main() {
+        |    val aMessage = "AMESSAGE"
+        |    println(aMessage)
+        |}
+        |""".stripMargin)
+
+    "should contain references to a LOCAL node" in {
+      val List(first: Identifier, second: Identifier) = cpg.identifier.nameExact("aMessage").l
+      first.refsTo.size shouldBe 1
+      second.refsTo.size shouldBe 1
+
+      val List(l) = cpg.local.nameExact("aMessage").l
+      l.referencingIdentifiers.id.l.contains(first.id) shouldBe true
+      l.referencingIdentifiers.id.l.contains(second.id) shouldBe true
+    }
+  }
+
   "CPG for code with shadowed local inside lambda" - {
     lazy val cpg = TestContext.buildCpg("""
         |package main

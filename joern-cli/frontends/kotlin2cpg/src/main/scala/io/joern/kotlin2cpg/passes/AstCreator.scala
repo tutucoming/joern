@@ -11,7 +11,7 @@ import io.shiftleft.codepropertygraph.generated._
 import io.shiftleft.passes.IntervalKeyPool
 import io.shiftleft.semanticcpg.language.types.structure.NamespaceTraversal
 import io.joern.x2cpg.{Ast, AstCreatorBase}
-import io.joern.x2cpg.datastructures.Global
+import io.joern.x2cpg.datastructures.{Global, Scope}
 
 import java.util.UUID.randomUUID
 import org.jetbrains.kotlin.psi._
@@ -98,6 +98,8 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
   private val lambdaKeyPool   = new IntervalKeyPool(first = 1, last = Long.MaxValue)
   private val tmpKeyPool      = new IntervalKeyPool(first = 1, last = Long.MaxValue)
   private val iteratorKeyPool = new IntervalKeyPool(first = 1, last = Long.MaxValue)
+
+  protected val scope: Scope[String, NewNode, NewNode] = new Scope()
 
   private val relativizedPath = fileWithMeta.relativizedPath
 
@@ -678,6 +680,12 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
     fileInfo: FileInfo,
     typeInfoProvider: TypeInfoProvider
   ): AstWithCtx = {
+    val fnWithSig = typeInfoProvider.fullNameWithSignature(ktFn, ("", ""))
+    val _methodNode =
+      methodNode(ktFn.getName, fnWithSig._1, fnWithSig._2, relativizedPath, line(ktFn), column(ktFn))
+        .order(childNum)
+    scope.pushNewScope(_methodNode)
+
     // TODO: add the annotations as soon as they're part of the open source schema
     // ktFn.getModifierList.getAnnotationEntries().asScala.map(_.getText)
     //
@@ -704,11 +712,6 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
       } else {
         ""
       }
-    val fnWithSig = typeInfoProvider.fullNameWithSignature(ktFn, ("", ""))
-
-    val _methodNode =
-      methodNode(ktFn.getName, fnWithSig._1, fnWithSig._2, relativizedPath, line(ktFn), column(ktFn))
-        .order(childNum)
 
     val parametersWithCtx =
       withOrder(ktFn.getValueParameters) { (p, order) =>
@@ -2910,6 +2913,8 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
     val node =
       localNode(expr.getName, typeFullName, None, line(expr), column(expr))
         .order(order)
+    scope.addToScope(expr.getName,  node)
+
     val hasRHSCtorCall = expr.getDelegateExpressionOrInitializer match {
       case typed: KtCallExpression =>
         typeInfoProvider.isConstructorCall(typed).getOrElse(false)
@@ -3012,15 +3017,12 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
       identifierNode(name, typeFullName, line(expr), column(expr))
         .argumentIndex(argIdx)
         .order(order)
-
-    val nameRefKind = typeInfoProvider.nameReferenceKind(expr)
-    val identifiersForCtx =
-      if (nameRefKind == NameReferenceKinds.ClassName) {
-        Seq()
-      } else {
-        Seq(node)
+    val ast =
+      scope.lookupVariable(name) match {
+        case Some(l) => Ast(node).withRefEdge(node, l)
+        case None =>  Ast(node)
       }
-    AstWithCtx(Ast(node), Context(identifiers = identifiersForCtx))
+    AstWithCtx(ast, Context())
   }
 
   def astForLiteral(expr: KtConstantExpression, scopeContext: Context, order: Int, argIdx: Int)(implicit
