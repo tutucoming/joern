@@ -983,8 +983,14 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
     typeInfoProvider: TypeInfoProvider
   ): Seq[AstWithCtx] = {
     expr match {
-      case blockStmt: KtBlockExpression   => List(astForBlock(blockStmt, scopeContext, order))
-      case returnExpr: KtReturnExpression => astsForReturnExpression(returnExpr, scopeContext, order)
+      case typedExpr: KtAnnotatedExpression =>
+        astsForExpression(typedExpr.getBaseExpression, scopeContext, order, argIdx)
+      case typedExpr: KtArrayAccessExpression => Seq(astForArrayAccess(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtBinaryExpression      => Seq(astForBinaryExpr(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtBinaryExpressionWithTypeRHS =>
+        Seq(astForBinaryExprWithTypeRHS(typedExpr, scopeContext, order, argIdx))
+      case blockStmt: KtBlockExpression => List(astForBlock(blockStmt, scopeContext, order))
+      case typedExpr: KtBreakExpression => Seq(astForBreak(typedExpr, scopeContext, order))
       case typedExpr: KtCallExpression =>
         val isCtorCall = typeInfoProvider.isConstructorCall(typedExpr)
         if (isCtorCall.getOrElse(false)) {
@@ -992,65 +998,44 @@ class AstCreator(fileWithMeta: KtFileWithMeta, xTypeInfoProvider: TypeInfoProvid
         } else {
           Seq(astForCall(typedExpr, scopeContext, order, argIdx))
         }
-      case typedExpr: KtConstantExpression => Seq(astForLiteral(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtBinaryExpression   => Seq(astForBinaryExpr(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtIsExpression       => Seq(astForIsExpression(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtBinaryExpressionWithTypeRHS =>
-        Seq(astForBinaryExprWithTypeRHS(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtNameReferenceExpression if typedExpr.getReferencedNameElementType == KtTokens.IDENTIFIER =>
-        Seq(astForNameReference(typedExpr, order, argIdx))
-      // TODO: callable reference
-      case _: KtNameReferenceExpression =>
-        // TODO: handle this
-        Seq()
-      case typedExpr: KtProperty if typedExpr.isLocal =>
-        astsForProperty(typedExpr, scopeContext, order)
-      case typedExpr: KtIfExpression       => Seq(astForIf(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtWhenExpression     => Seq(astForWhen(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtForExpression      => Seq(astForFor(typedExpr, scopeContext, order))
-      case typedExpr: KtWhileExpression    => Seq(astForWhile(typedExpr, scopeContext, order))
-      case typedExpr: KtDoWhileExpression  => Seq(astForDoWhile(typedExpr, scopeContext, order))
-      case typedExpr: KtTryExpression      => Seq(astForTry(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtBreakExpression    => Seq(astForBreak(typedExpr, scopeContext, order))
-      case typedExpr: KtContinueExpression => Seq(astForContinue(typedExpr, scopeContext, order))
-      case typedExpr: KtDotQualifiedExpression =>
-        Seq(astForQualifiedExpression(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtStringTemplateExpression =>
-        Seq(astForStringTemplate(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtPrefixExpression =>
-        Seq(astForPrefixExpression(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtPostfixExpression =>
-        Seq(astForPostfixExpression(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtParenthesizedExpression =>
-        astsForExpression(typedExpr.getExpression, scopeContext, order, argIdx)
-      case typedExpr: KtArrayAccessExpression =>
-        Seq(astForArrayAccess(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtLambdaExpression =>
-        Seq(astForLambda(typedExpr, scopeContext, order, argIdx))
+      case classExpr: KtClassLiteralExpression   => Seq(astForClassLiteral(classExpr, scopeContext, order, argIdx))
+      case typedExpr: KtConstantExpression       => Seq(astForLiteral(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtContinueExpression       => Seq(astForContinue(typedExpr, scopeContext, order))
+      case typedExpr: KtDestructuringDeclaration => astsForDestructuringDeclaration(typedExpr, scopeContext, order)
+      case typedExpr: KtDotQualifiedExpression => Seq(astForQualifiedExpression(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtDoWhileExpression      => Seq(astForDoWhile(typedExpr, scopeContext, order))
+      case typedExpr: KtForExpression          => Seq(astForFor(typedExpr, scopeContext, order))
+      case typedExpr: KtIfExpression           => Seq(astForIf(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtIsExpression           => Seq(astForIsExpression(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtLabeledExpression => astsForExpression(typedExpr.getBaseExpression, scopeContext, order, argIdx)
+      case typedExpr: KtLambdaExpression  => Seq(astForLambda(typedExpr, scopeContext, order, argIdx))
       case typedExpr: KtNamedFunction =>
         logger.debug(
           "Creating empty AST node for unknown expression `${typedExpr.getClass}` with text `${typedExpr.getText}`"
         )
         Seq(astForUnknown(typedExpr, order, argIdx))
-      case classExpr: KtClassLiteralExpression =>
-        Seq(astForClassLiteral(classExpr, scopeContext, order, argIdx))
-      case sqExpr: KtSafeQualifiedExpression =>
-        Seq(astForQualifiedExpression(sqExpr, scopeContext, order, argIdx))
-      case typedExpr: KtThisExpression =>
-        Seq(astForThisExpression(typedExpr, scopeContext, order, argIdx))
-      case typedExpr: KtAnnotatedExpression =>
-        astsForExpression(typedExpr.getBaseExpression, scopeContext, order, argIdx)
-      case typedExpr: KtObjectLiteralExpression =>
-        // TODO: handle properly
-        Seq(astForUnknown(typedExpr, order, argIdx))
-      case typedExpr: KtThrowExpression =>
-        Seq(astForUnknown(typedExpr, order, argIdx))
-      case typedExpr: KtDestructuringDeclaration =>
-        astsForDestructuringDeclaration(typedExpr, scopeContext, order)
-      case typedExpr: KtLabeledExpression =>
-        astsForExpression(typedExpr.getBaseExpression, scopeContext, order, argIdx)
-      case typedExpr: KtSuperExpression =>
-        Seq(astForSuperExpression(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtNameReferenceExpression if typedExpr.getReferencedNameElementType == KtTokens.IDENTIFIER =>
+        Seq(astForNameReference(typedExpr, order, argIdx))
+      // TODO: callable reference
+      case _: KtNameReferenceExpression         => Seq()                                        // TODO: handle
+      case typedExpr: KtObjectLiteralExpression => Seq(astForUnknown(typedExpr, order, argIdx)) // TODO: handle
+      case typedExpr: KtParenthesizedExpression =>
+        astsForExpression(typedExpr.getExpression, scopeContext, order, argIdx)
+      case typedExpr: KtPrefixExpression => Seq(astForPrefixExpression(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtProperty if typedExpr.isLocal => astsForProperty(typedExpr, scopeContext, order)
+      case typedExpr: KtPostfixExpression =>
+        Seq(astForPostfixExpression(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtReturnExpression => astsForReturnExpression(typedExpr, scopeContext, order)
+      case typedExpr: KtSafeQualifiedExpression =>
+        Seq(astForQualifiedExpression(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtStringTemplateExpression =>
+        Seq(astForStringTemplate(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtSuperExpression => Seq(astForSuperExpression(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtThisExpression  => Seq(astForThisExpression(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtThrowExpression => Seq(astForUnknown(typedExpr, order, argIdx))
+      case typedExpr: KtTryExpression   => Seq(astForTry(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtWhenExpression  => Seq(astForWhen(typedExpr, scopeContext, order, argIdx))
+      case typedExpr: KtWhileExpression => Seq(astForWhile(typedExpr, scopeContext, order))
       case null =>
         logger.debug("Received null expression! Skipping...")
         Seq()
