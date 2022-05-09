@@ -106,7 +106,7 @@ class TypeDeclTests extends JavaSrcCodeToCpgFixture {
     cpg.typeDecl.nameExact("OuterClass$InnerInterface").l match {
       case List(interface) =>
         interface.fullName shouldBe "a.b.c.d.OuterClass$InnerInterface"
-        interface.inheritsFromTypeFullName.toList shouldBe List("java.lang.Object")
+        interface.inheritsFromTypeFullName.toList shouldBe List() // Interface should not extend Object
         interface.isExternal shouldBe false
         interface.method.name("id").toList match {
           case List(method) =>
