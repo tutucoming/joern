@@ -48,7 +48,8 @@ object GradleDependencies {
     taskName: String,
     destination: String,
     gradleProjectName: String,
-    gradleConfigurationName: String
+    gradleConfigurationName: String,
+    gradleVariantName: String
   ): String = {
     s"""
        |allprojects {
@@ -98,12 +99,13 @@ object GradleDependencies {
     destinationDir: Path,
     forAndroid: Boolean,
     gradleProjectName: String,
-    gradleConfigurationName: String
+    gradleConfigurationName: String,
+    gradleVariantName: String
   ): GradleDepsInitScript = {
     val taskName = taskNamePrefix + "_" + (Random.alphanumeric take 8).toList.mkString
     val content =
       if (forAndroid) {
-        gradle5OrLaterAndroidInitScript(taskName, destinationDir.toString, gradleProjectName, gradleConfigurationName)
+        gradle5OrLaterAndroidInitScript(taskName, destinationDir.toString, gradleProjectName, gradleConfigurationName, gradleVariantName)
       } else {
         gradle5OrLaterInitScript(taskName, destinationDir.toString)
       }
@@ -242,7 +244,8 @@ object GradleDependencies {
   private[dependency] def get(
     projectDir: Path,
     projectName: String,
-    configurationName: String
+    configurationName: String,
+    variantName: String
   ): Option[collection.Seq[String]] = {
     logger.info(s"Fetching Gradle project information at path `$projectDir` with project name `$projectName`.")
     getGradleProjectInfo(projectDir, projectName) match {
@@ -255,7 +258,7 @@ object GradleDependencies {
             Try(File.newTemporaryFile(initScriptPrefix).deleteOnExit()) match {
               case Success(initScriptFile) =>
                 val initScript =
-                  makeInitScript(destinationDir.path, projectInfo.hasAndroidSubproject, projectName, configurationName)
+                  makeInitScript(destinationDir.path, projectInfo.hasAndroidSubproject, projectName, configurationName, variantName)
                 initScriptFile.write(initScript.contents)
 
                 logger.info(

@@ -55,7 +55,8 @@ class Kotlin2Cpg extends X2CpgFrontend[Config] {
           if (config.downloadDependencies) {
             val gradleParams = Map(
               GradleConfigKeys.ProjectName       -> config.gradleProjectName,
-              GradleConfigKeys.ConfigurationName -> config.gradleConfigurationName
+              GradleConfigKeys.ConfigurationName -> config.gradleConfigurationName,
+              GradleConfigKeys.VariantName -> config.gradleConfigurationName
             ).collect { case (key, Some(value)) => (key, value) }
 
             val resolverParams = DependencyResolverParams(Map.empty, gradleParams)

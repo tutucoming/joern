@@ -7,7 +7,7 @@ import java.nio.file.{Files, Path}
 
 object GradleConfigKeys extends Enumeration {
   type GradleConfigKey = Value
-  val ProjectName, ConfigurationName = Value
+  val ProjectName, ConfigurationName, VariantName = Value
 }
 case class DependencyResolverParams(
   forMaven: Map[String, String] = Map(),
@@ -18,6 +18,7 @@ object DependencyResolver {
   private val logger                         = LoggerFactory.getLogger(getClass)
   private val defaultGradleProjectName       = "app"
   private val defaultGradleConfigurationName = "releaseCompileClasspath"
+  private val defaultGradleVariantName = "default"
 
   def getDependencies(
     projectDir: Path,
@@ -29,7 +30,8 @@ object DependencyResolver {
       val gradleProjectName = params.forGradle.getOrElse(GradleConfigKeys.ProjectName, defaultGradleProjectName)
       val gradleConfiguration =
         params.forGradle.getOrElse(GradleConfigKeys.ConfigurationName, defaultGradleConfigurationName)
-      GradleDependencies.get(projectDir, gradleProjectName, gradleConfiguration) match {
+      val gradleVariantName = params.forGradle.getOrElse(GradleConfigKeys.VariantName, defaultGradleVariantName)
+      GradleDependencies.get(projectDir, gradleProjectName, gradleConfiguration, gradleVariantName) match {
         case Some(deps) => Some(deps)
         case None =>
           logger.warn(s"Could not download Gradle dependencies for project at path `$projectDir`")

@@ -13,7 +13,8 @@ final case class Config(
   withStdlibJarsInClassPath: Boolean = true,
   downloadDependencies: Boolean = false,
   gradleProjectName: Option[String] = None,
-  gradleConfigurationName: Option[String] = None
+  gradleConfigurationName: Option[String] = None,
+  gradleVariantName: Option[String] = None
 ) extends X2CpgConfig[Config] {
 
   override def withAdditionalInputPath(inputPath: String): Config =
@@ -46,7 +47,10 @@ private object Frontend {
         .action((value, c) => c.copy(gradleProjectName = Some(value))),
       opt[String]("gradle-configuration-name")
         .text("Name of the Gradle configuration used to download dependencies")
-        .action((value, c) => c.copy(gradleConfigurationName = Some(value)))
+        .action((value, c) => c.copy(gradleConfigurationName = Some(value))),
+      opt[String]("gradle-variant-name")
+        .text("Name of the Gradle variant used to download dependencies")
+        .action((value, c) => c.copy(gradleVariantName = Some(value)))
     )
   }
 }
