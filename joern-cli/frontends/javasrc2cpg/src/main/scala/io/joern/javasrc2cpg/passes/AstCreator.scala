@@ -6,6 +6,7 @@ import com.github.javaparser.ast.body.{
   AnnotationDeclaration,
   BodyDeclaration,
   CallableDeclaration,
+  ClassOrInterfaceDeclaration,
   ConstructorDeclaration,
   EnumConstantDeclaration,
   FieldDeclaration,
@@ -502,7 +503,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       val decl             = typ.asClassOrInterfaceDeclaration()
       val extendedTypes    = decl.getExtendedTypes.asScala
       val implementedTypes = decl.getImplementedTypes.asScala
-      val maybeJavaObjectType = if (extendedTypes.isEmpty && !decl.isInterface) {
+      val maybeJavaObjectType = if (extendedTypes.isEmpty) {
         typeInfoCalc.registerType(TypeConstants.Object)
         Seq(TypeConstants.Object)
       } else {
@@ -519,6 +520,27 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
     val name         = resolvedType.map(typeInfoCalc.name).getOrElse(typ.getNameAsString)
     val typeFullName = resolvedType.map(typeInfoCalc.fullName).getOrElse(typ.getNameAsString)
 
+    val codeBuilder = new mutable.StringBuilder()
+    if (typ.isPublic) {
+      codeBuilder.append("public ")
+    } else if (typ.isPrivate) {
+      codeBuilder.append("private ")
+    } else if (typ.isProtected) {
+      codeBuilder.append("protected ")
+    }
+    if (typ.isStatic) {
+      codeBuilder.append("static ")
+    }
+    typ match {
+      case classDeclaration: ClassOrInterfaceDeclaration =>
+        if (classDeclaration.isInterface) {
+          codeBuilder.append("interface ")
+        } else {
+          codeBuilder.append("class ")
+        }
+    }
+    codeBuilder.append(typ.getNameAsString)
+
     val typeDecl = NewTypeDecl()
       .name(name)
       .fullName(typeFullName)
@@ -527,7 +549,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       .inheritsFromTypeFullName(baseTypeFullNames)
       .order(order)
       .filename(filename)
-      .code(typ.getNameAsString)
+      .code(codeBuilder.toString())
       .astParentType(astParentType)
       .astParentFullName(astParentFullName)
 
@@ -957,18 +979,25 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
 
     val annotationAsts = methodDeclaration.getAnnotations.asScala.map(astForAnnotationExpr)
 
-    val modifiers =
-      if (!methodDeclaration.isStatic) {
-        Seq(
-          Ast(
-            NewModifier()
-              .modifierType(ModifierTypes.VIRTUAL)
-              .code(ModifierTypes.VIRTUAL)
-          )
-        )
-      } else {
-        Seq()
-      }
+    val isInterfaceMethod         = scopeStack.getEnclosingTypeDecl.exists(_.code.contains("interface "))
+    val isAbstractMethod          = methodDeclaration.isAbstract || (isInterfaceMethod && !methodDeclaration.isDefault)
+    val abstractModifier          = Option.when(isAbstractMethod)(NewModifier().modifierType(ModifierTypes.ABSTRACT))
+    val staticVirtualModifierType = if (methodDeclaration.isStatic) ModifierTypes.STATIC else ModifierTypes.VIRTUAL
+    val staticVirtualModifier     = Some(NewModifier().modifierType(staticVirtualModifierType))
+    val accessModifierType = if (methodDeclaration.isPublic) {
+      ModifierTypes.PUBLIC
+    } else if (methodDeclaration.isPrivate) {
+      ModifierTypes.PRIVATE
+    } else if (isInterfaceMethod) {
+      // TODO: more robust interface check
+      ModifierTypes.PUBLIC
+    } else {
+      // Not entirely true for methods without an explicit access modifier, but close enough.
+      ModifierTypes.PROTECTED
+    }
+    val accessModifier = Some(NewModifier().modifierType(accessModifierType))
+
+    val modifiers = List(abstractModifier, staticVirtualModifier, accessModifier).flatten.map(Ast(_))
 
     scopeStack.popScope()
 
@@ -2402,6 +2431,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
           .typeFullName(typ)
           .order(idx)
           .code(s"$typ $name")
+          .evaluationStrategy(EvaluationStrategies.BY_SHARING)
       }
 
     parameterNodes.foreach { paramNode =>
@@ -2550,6 +2580,8 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
 
     val lambdaMethodBody = astForLambdaBody(expr.getBody, localsForCaptured, returnType, parametersWithoutThis.size + 1)
 
+    val virtualModifier = NewModifier().modifierType(ModifierTypes.VIRTUAL)
+
     val thisParam = lambdaMethodBody.nodes
       .collect { case identifier: NewIdentifier => identifier }
       .find { identifier => identifier.name == "this" || identifier.name == "super" }
@@ -2582,6 +2614,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
 
     val lambdaMethodAstWithoutRefs =
       Ast(lambdaMethodNode)
+        .withChild(Ast(virtualModifier))
         .withChildren(parameters)
         .withChild(lambdaMethodBody)
         .withChild(Ast(methodReturnNode))
@@ -2599,7 +2632,11 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
     lambdaMethodNode: NewMethod,
     implementedInfo: LambdaImplementedInfo
   ): NewTypeDecl = {
-    val inheritsFromTypeFullName = implementedInfo.implementedInterface.map(typeInfoCalc.fullName).toList
+    val inheritsFromTypeFullName =
+      implementedInfo.implementedInterface
+        .map(typeInfoCalc.fullName)
+        .orElse(Some(TypeConstants.Object))
+        .toList
 
     val lambdaTypeDeclNode =
       NewTypeDecl()
@@ -2642,6 +2679,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       NewMethodRef()
         .methodFullName(lambdaMethodNode.fullName)
         .typeFullName(lambdaMethodNode.fullName)
+        .code(lambdaMethodNode.fullName)
 
     addClosureBindingsToDiffGraph(closureBindingsForCapturedVars, methodRef)
 
