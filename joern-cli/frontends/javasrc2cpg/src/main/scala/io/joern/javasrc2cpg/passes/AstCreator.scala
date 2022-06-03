@@ -2580,8 +2580,6 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
 
     val lambdaMethodBody = astForLambdaBody(expr.getBody, localsForCaptured, returnType, parametersWithoutThis.size + 1)
 
-    val virtualModifier = NewModifier().modifierType(ModifierTypes.VIRTUAL)
-
     val thisParam = lambdaMethodBody.nodes
       .collect { case identifier: NewIdentifier => identifier }
       .find { identifier => identifier.name == "this" || identifier.name == "super" }
@@ -2595,6 +2593,16 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
 
     val lambdaMethodNode = createLambdaMethodNode(expr, parametersWithoutThis, returnType)
     addLambdaMethodBindingToDiffGraph(lambdaMethodNode)
+
+    val virtualModifier = Some(NewModifier().modifierType(ModifierTypes.VIRTUAL))
+    val staticModifier = Option.when(thisParam.isEmpty)(NewModifier().modifierType(ModifierTypes.STATIC))
+    val privateModifier = Some(NewModifier().modifierType(ModifierTypes.PRIVATE))
+
+    val modifiers = List(
+      virtualModifier,
+      staticModifier,
+      privateModifier
+    ).flatten.map(Ast(_))
 
     val methodReturnNode =
       NewMethodReturn()
@@ -2614,7 +2622,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
 
     val lambdaMethodAstWithoutRefs =
       Ast(lambdaMethodNode)
-        .withChild(Ast(virtualModifier))
+        .withChildren(modifiers)
         .withChildren(parameters)
         .withChild(lambdaMethodBody)
         .withChild(Ast(methodReturnNode))
@@ -2638,6 +2646,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
         .orElse(Some(TypeConstants.Object))
         .toList
 
+    typeInfoCalc.registerType(lambdaMethodNode.fullName)
     val lambdaTypeDeclNode =
       NewTypeDecl()
         .fullName(lambdaMethodNode.fullName)
