@@ -112,6 +112,9 @@ import io.shiftleft.codepropertygraph.generated.{
   PropertyNames
 }
 import io.shiftleft.codepropertygraph.generated.nodes.{
+  HasFullName,
+  HasName,
+  HasSignature,
   NewAnnotation,
   NewAnnotationLiteral,
   NewAnnotationParameter,
@@ -142,11 +145,10 @@ import io.shiftleft.codepropertygraph.generated.nodes.{
 }
 import io.joern.x2cpg.{Ast, AstCreatorBase}
 import io.joern.x2cpg.datastructures.Global
-import org.checkerframework.checker.signature.qual.PrimitiveType
 import org.slf4j.LoggerFactory
 import overflowdb.BatchedUpdate.DiffGraphBuilder
 
-import java.util.UUID.randomUUID
+import java.util.UUID.{nameUUIDFromBytes, randomUUID}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters.RichOptional
@@ -531,14 +533,13 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
     if (typ.isStatic) {
       codeBuilder.append("static ")
     }
-    typ match {
-      case classDeclaration: ClassOrInterfaceDeclaration =>
-        if (classDeclaration.isInterface) {
-          codeBuilder.append("interface ")
-        } else {
-          codeBuilder.append("class ")
-        }
+
+    val isInterface = typ match {
+      case classDeclaration: ClassOrInterfaceDeclaration if classDeclaration.isInterface => true
+      case _                                                                             => false
     }
+    val classPrefix = if (isInterface) "interface " else "class "
+    codeBuilder.append(classPrefix)
     codeBuilder.append(typ.getNameAsString)
 
     val typeDecl = NewTypeDecl()
@@ -597,6 +598,18 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
 
     val lambdaMethods = scopeStack.getLambdaMethodsInScope.toSeq
 
+    val accessModifierType = if (typ.isPublic) {
+      ModifierTypes.PUBLIC
+    } else if (typ.isPrivate) {
+      ModifierTypes.PRIVATE
+    } else {
+      ModifierTypes.PROTECTED
+    }
+
+    val abstractModifier = Option.when(isInterface || typ.getMethods.asScala.exists(_.isAbstract))(
+      NewModifier().modifierType(ModifierTypes.ABSTRACT)
+    )
+
     val typeDeclAst = Ast(typeDecl)
       .withChildren(enumEntryAsts)
       .withChildren(memberAsts)
@@ -604,6 +617,17 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       .withChildren(annotationAsts)
       .withChildren(clinitAst.toSeq)
       .withChildren(lambdaMethods)
+      .withChildren(abstractModifier.map(Ast(_)).toList)
+
+    val defaultConstructorBindingEntry =
+      defaultConstructorAst
+        .flatMap(_.root)
+        .collect { case defaultConstructor: NewNode with HasFullName with HasSignature =>
+          defaultConstructor
+        }
+        .map { defaultConstructor =>
+          BindingTableEntry("<init>", defaultConstructor.signature, defaultConstructor.fullName)
+        }
 
     // Annotation declarations need no binding table as objects of this
     // typ never get called from user code.
@@ -612,6 +636,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
     if (!typ.isInstanceOf[AnnotationDeclaration]) {
       Try(typ.resolve()).toOption.foreach { resolvedTypeDecl =>
         val bindingTable = getBindingTable(resolvedTypeDecl)
+        defaultConstructorBindingEntry.foreach(bindingTable.add)
         createBindingNodes(typeDecl, bindingTable)
       }
     }
@@ -2595,14 +2620,10 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
     addLambdaMethodBindingToDiffGraph(lambdaMethodNode)
 
     val virtualModifier = Some(NewModifier().modifierType(ModifierTypes.VIRTUAL))
-    val staticModifier = Option.when(thisParam.isEmpty)(NewModifier().modifierType(ModifierTypes.STATIC))
+    val staticModifier  = Option.when(thisParam.isEmpty)(NewModifier().modifierType(ModifierTypes.STATIC))
     val privateModifier = Some(NewModifier().modifierType(ModifierTypes.PRIVATE))
 
-    val modifiers = List(
-      virtualModifier,
-      staticModifier,
-      privateModifier
-    ).flatten.map(Ast(_))
+    val modifiers = List(virtualModifier, staticModifier, privateModifier).flatten.map(Ast(_))
 
     val methodReturnNode =
       NewMethodReturn()
@@ -2678,7 +2699,14 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
   private def astForLambdaExpr(expr: LambdaExpr, expectedType: Option[ExpectedType]): Ast = {
     scopeStack.pushNewScope(MethodScope(expectedType.getOrElse(ExpectedType.default)))
 
-    val capturedVariables              = scopeStack.getCapturedVariables
+    // TODO This is terrible and only exists for the purposes of debugging lambdas. REMOVE THIS!!!!
+    val lambdaMethodBody = astForLambdaBody(expr.getBody, List.empty, "", 0)
+    val bodyIdentifiers  = lambdaMethodBody.nodes.collect { case ident: NewIdentifier => ident }.map(_.name).toSet
+    // END TERRIBLE
+
+    val capturedVariables = scopeStack.getCapturedVariables.filter { variable =>
+      bodyIdentifiers.contains(variable.name)
+    }
     val closureBindingsForCapturedVars = closureBindingsForCapturedNodes(capturedVariables)
     val localsForCaptured              = localsForCapturedNodes(closureBindingsForCapturedVars)
     val implementedInfo                = getLambdaImplementedInfo(expr, expectedType)
@@ -2943,7 +2971,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       .order(childNum)
       .lineNumber(line(parameter))
       .columnNumber(column(parameter))
-      .evaluationStrategy(EvaluationStrategies.BY_VALUE)
+      .evaluationStrategy(EvaluationStrategies.BY_SHARING)
     val annotationAsts = parameter.getAnnotations.asScala.map(astForAnnotationExpr)
     val ast            = Ast(parameterNode)
 

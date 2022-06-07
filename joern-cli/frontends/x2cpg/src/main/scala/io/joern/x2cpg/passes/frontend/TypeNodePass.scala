@@ -27,7 +27,7 @@ class TypeNodePass(usedTypes: List[String], cpg: Cpg, keyPool: Option[KeyPool] =
     usedTypes.sorted.foreach { typeName =>
       val shortName = typeName match {
         case lambdaTypeRegex(methodName) => methodName
-        case _ => typeName.split('.').lastOption.getOrElse(typeName)
+        case _                           => typeName.split('.').lastOption.getOrElse(typeName)
       }
       val node = NewType()
         .name(shortName)
