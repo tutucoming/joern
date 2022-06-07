@@ -9,22 +9,12 @@ import io.shiftleft.passes.ConcurrentWriterCpgPass
 import com.github.javaparser.symbolsolver.resolution.typesolvers.{
   CombinedTypeSolver,
   JarTypeSolver,
-  JavaParserTypeSolver,
-  ReflectionTypeSolver
+  JavaParserTypeSolver
 }
 import io.joern.javasrc2cpg.Config
 import io.joern.javasrc2cpg.util.{CachingReflectionTypeSolver, SourceRootFinder}
-import io.joern.x2cpg.Ast
 import io.joern.x2cpg.datastructures.Global
 import io.joern.x2cpg.utils.dependency.DependencyResolver
-import io.shiftleft.codepropertygraph.generated.{EvaluationStrategies, ModifierTypes, Operators}
-import io.shiftleft.codepropertygraph.generated.nodes.{
-  NewBlock,
-  NewMethod,
-  NewMethodParameterIn,
-  NewMethodReturn,
-  NewModifier
-}
 import org.slf4j.LoggerFactory
 
 import java.nio.file.Paths
@@ -55,36 +45,6 @@ class AstCreationPass(codeDir: String, filenames: List[String], config: Config, 
         }
     }
 
-//    val assignMethod = NewMethod()
-//      .name(Operators.assignment)
-//      .fullName(Operators.assignment)
-//    val assignParams = List(
-//      NewMethodParameterIn()
-//        .name("p1")
-//        .typeFullName("ANY")
-//        .order(1)
-//        .index(1)
-//        .evaluationStrategy(EvaluationStrategies.BY_REFERENCE),
-//      NewMethodParameterIn()
-//        .name("p2")
-//        .typeFullName("ANY")
-//        .order(2)
-//        .index(2)
-//        .evaluationStrategy(EvaluationStrategies.BY_SHARING)
-//    )
-//    val methodReturn = NewMethodReturn().typeFullName("ANY").evaluationStrategy(EvaluationStrategies.BY_VALUE)
-//    val modifiers =
-//      List(NewModifier().modifierType(ModifierTypes.STATIC), NewModifier().modifierType(ModifierTypes.PUBLIC))
-//    val body = NewBlock()
-//
-//    val assignAst = Ast(assignMethod)
-//      .withChild(Ast(methodReturn))
-//      .withChildren(assignParams.map(Ast(_)))
-//      .withChild(Ast(body))
-//      .withChildren(modifiers.map(Ast(_)))
-//
-//    Ast.storeInDiffGraph(assignAst, diffGraph)
-
     parseResult.getResult.toScala match {
       case Some(result) if result.getParsed == Parsedness.PARSED =>
         diffGraph.absorb(new AstCreator(filename, result, global, symbolResolver).createAst())
@@ -92,7 +52,6 @@ class AstCreationPass(codeDir: String, filenames: List[String], config: Config, 
         logger.warn("Failed to parse file " + filename)
         Iterator()
     }
-
   }
 
   private def jarsList: List[String] = {

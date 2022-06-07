@@ -108,12 +108,12 @@ import io.shiftleft.codepropertygraph.generated.{
   EdgeTypes,
   EvaluationStrategies,
   ModifierTypes,
+  NodeTypes,
   Operators,
   PropertyNames
 }
 import io.shiftleft.codepropertygraph.generated.nodes.{
   HasFullName,
-  HasName,
   HasSignature,
   NewAnnotation,
   NewAnnotationLiteral,
@@ -148,7 +148,7 @@ import io.joern.x2cpg.datastructures.Global
 import org.slf4j.LoggerFactory
 import overflowdb.BatchedUpdate.DiffGraphBuilder
 
-import java.util.UUID.{nameUUIDFromBytes, randomUUID}
+import java.util.UUID.randomUUID
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters.RichOptional
@@ -246,7 +246,12 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       addImportsToScope(compilationUnit)
 
       val typeDeclAsts = withOrder(compilationUnit.getTypes) { (typ, order) =>
-        astForTypeDecl(typ, order, astParentType = "NAMESPACE_BLOCK", astParentFullName = namespaceBlockFullName)
+        astForTypeDecl(
+          typ,
+          order,
+          astParentType = NodeTypes.NAMESPACE_BLOCK,
+          astParentFullName = namespaceBlockFullName
+        )
       }
 
       val lambdaTypeDeclAsts = scopeStack.getLambdaDeclsInScope.toSeq
@@ -385,7 +390,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
         AstWithStaticInit(ast)
 
       case typeDeclaration: TypeDeclaration[_] =>
-        AstWithStaticInit(astForTypeDecl(typeDeclaration, order, "TYPE_DECL", astParentFullName))
+        AstWithStaticInit(astForTypeDecl(typeDeclaration, order, NodeTypes.TYPE_DECL, astParentFullName))
 
       case fieldDeclaration: FieldDeclaration =>
         val memberAsts = withOrder(fieldDeclaration.getVariables) { (variable, idx) =>
@@ -479,7 +484,6 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       val staticModifier = NewModifier()
         .modifierType(ModifierTypes.STATIC)
         .code(ModifierTypes.STATIC)
-        .order(-1)
 
       val body = Ast(NewBlock().order(1)).withChildren(staticInits)
 
@@ -495,12 +499,52 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
     }
   }
 
-  private def astForTypeDecl(
+  private def codeForTypeDecl(typ: TypeDeclaration[_], isInterface: Boolean): String = {
+    val codeBuilder = new mutable.StringBuilder()
+    if (typ.isPublic) {
+      codeBuilder.append("public ")
+    } else if (typ.isPrivate) {
+      codeBuilder.append("private ")
+    } else if (typ.isProtected) {
+      codeBuilder.append("protected ")
+    }
+    if (typ.isStatic) {
+      codeBuilder.append("static ")
+    }
+
+    val classPrefix = if (isInterface) "interface " else "class "
+    codeBuilder.append(classPrefix)
+    codeBuilder.append(typ.getNameAsString)
+
+    codeBuilder.toString()
+  }
+
+  private def modifiersForTypeDecl(typ: TypeDeclaration[_], isInterface: Boolean): List[NewModifier] = {
+    val accessModifierType = if (typ.isPublic) {
+      Some(ModifierTypes.PUBLIC)
+    } else if (typ.isPrivate) {
+      Some(ModifierTypes.PRIVATE)
+    } else if (typ.isProtected) {
+      Some(ModifierTypes.PROTECTED)
+    } else {
+      None
+    }
+    val accessModifier = accessModifierType.map(NewModifier().modifierType(_))
+
+    val abstractModifier = Option.when(isInterface || typ.getMethods.asScala.exists(_.isAbstract))(
+      NewModifier().modifierType(ModifierTypes.ABSTRACT)
+    )
+
+    List(accessModifier, abstractModifier).flatten
+  }
+
+  private def createTypeDeclNode(
     typ: TypeDeclaration[_],
     order: Int,
     astParentType: String,
-    astParentFullName: String
-  ): Ast = {
+    astParentFullName: String,
+    isInterface: Boolean
+  ): NewTypeDecl = {
     val baseTypeFullNames = if (typ.isClassOrInterfaceDeclaration) {
       val decl             = typ.asClassOrInterfaceDeclaration()
       val extendedTypes    = decl.getExtendedTypes.asScala
@@ -522,27 +566,9 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
     val name         = resolvedType.map(typeInfoCalc.name).getOrElse(typ.getNameAsString)
     val typeFullName = resolvedType.map(typeInfoCalc.fullName).getOrElse(typ.getNameAsString)
 
-    val codeBuilder = new mutable.StringBuilder()
-    if (typ.isPublic) {
-      codeBuilder.append("public ")
-    } else if (typ.isPrivate) {
-      codeBuilder.append("private ")
-    } else if (typ.isProtected) {
-      codeBuilder.append("protected ")
-    }
-    if (typ.isStatic) {
-      codeBuilder.append("static ")
-    }
+    val code = codeForTypeDecl(typ, isInterface)
 
-    val isInterface = typ match {
-      case classDeclaration: ClassOrInterfaceDeclaration if classDeclaration.isInterface => true
-      case _                                                                             => false
-    }
-    val classPrefix = if (isInterface) "interface " else "class "
-    codeBuilder.append(classPrefix)
-    codeBuilder.append(typ.getNameAsString)
-
-    val typeDecl = NewTypeDecl()
+    NewTypeDecl()
       .name(name)
       .fullName(typeFullName)
       .lineNumber(line(typ))
@@ -550,11 +576,25 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       .inheritsFromTypeFullName(baseTypeFullNames)
       .order(order)
       .filename(filename)
-      .code(codeBuilder.toString())
+      .code(code)
       .astParentType(astParentType)
       .astParentFullName(astParentFullName)
+  }
 
-    scopeStack.pushNewScope(TypeDeclScope(typeDecl))
+  private def astForTypeDecl(
+    typ: TypeDeclaration[_],
+    order: Int,
+    astParentType: String,
+    astParentFullName: String
+  ): Ast = {
+    val isInterface = typ match {
+      case classDeclaration: ClassOrInterfaceDeclaration if classDeclaration.isInterface => true
+      case _                                                                             => false
+    }
+
+    val typeDeclNode = createTypeDeclNode(typ, order, astParentType, astParentFullName, isInterface)
+
+    scopeStack.pushNewScope(TypeDeclScope(typeDeclNode))
 
     val typeParameterMap = getTypeParameterMap(Try(typ.resolve()))
     typeParameterMap.foreach { case (identifier, node) =>
@@ -577,7 +617,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
           member,
           order + enumEntryAsts.size + idx - 1,
           clinitOrder,
-          astParentFullName = typeFullName
+          astParentFullName = NodeTypes.TYPE_DECL
         )
       clinitOrder += astWithInits.staticInits.size
       staticInits.appendAll(astWithInits.staticInits)
@@ -598,26 +638,16 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
 
     val lambdaMethods = scopeStack.getLambdaMethodsInScope.toSeq
 
-    val accessModifierType = if (typ.isPublic) {
-      ModifierTypes.PUBLIC
-    } else if (typ.isPrivate) {
-      ModifierTypes.PRIVATE
-    } else {
-      ModifierTypes.PROTECTED
-    }
+    val modifiers = modifiersForTypeDecl(typ, isInterface)
 
-    val abstractModifier = Option.when(isInterface || typ.getMethods.asScala.exists(_.isAbstract))(
-      NewModifier().modifierType(ModifierTypes.ABSTRACT)
-    )
-
-    val typeDeclAst = Ast(typeDecl)
+    val typeDeclAst = Ast(typeDeclNode)
       .withChildren(enumEntryAsts)
       .withChildren(memberAsts)
       .withChildren(defaultConstructorAst.toList)
       .withChildren(annotationAsts)
       .withChildren(clinitAst.toSeq)
       .withChildren(lambdaMethods)
-      .withChildren(abstractModifier.map(Ast(_)).toList)
+      .withChildren(modifiers.map(Ast(_)))
 
     val defaultConstructorBindingEntry =
       defaultConstructorAst
@@ -637,7 +667,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       Try(typ.resolve()).toOption.foreach { resolvedTypeDecl =>
         val bindingTable = getBindingTable(resolvedTypeDecl)
         defaultConstructorBindingEntry.foreach(bindingTable.add)
-        createBindingNodes(typeDecl, bindingTable)
+        createBindingNodes(typeDeclNode, bindingTable)
       }
     }
 
@@ -722,17 +752,17 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
     val annotationAsts = annotations.asScala.map(astForAnnotationExpr)
 
     val staticModifier = if (fieldDeclaration.isStatic) {
-      Some(NewModifier().modifierType(ModifierTypes.STATIC).code(ModifierTypes.STATIC).order(-1))
+      Some(NewModifier().modifierType(ModifierTypes.STATIC).code(ModifierTypes.STATIC))
     } else {
       None
     }
 
     val accessModifier = if (fieldDeclaration.isPublic) {
-      Some(NewModifier().modifierType(ModifierTypes.PUBLIC).code(ModifierTypes.PUBLIC).order(-1))
+      Some(NewModifier().modifierType(ModifierTypes.PUBLIC).code(ModifierTypes.PUBLIC))
     } else if (fieldDeclaration.isPrivate) {
-      Some(NewModifier().modifierType(ModifierTypes.PRIVATE).code(ModifierTypes.PRIVATE).order(-1))
+      Some(NewModifier().modifierType(ModifierTypes.PRIVATE).code(ModifierTypes.PRIVATE))
     } else if (fieldDeclaration.isProtected) {
-      Some(NewModifier().modifierType(ModifierTypes.PROTECTED).code(ModifierTypes.PROTECTED).order(-1))
+      Some(NewModifier().modifierType(ModifierTypes.PROTECTED).code(ModifierTypes.PROTECTED))
     } else {
       None
     }
@@ -2328,7 +2358,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       case x: EnclosedExpr            => astForEnclosedExpression(x, order, expectedType)
       case x: FieldAccessExpr         => Seq(astForFieldAccessExpr(x, order, expectedType))
       case x: InstanceOfExpr          => Seq(astForInstanceOfExpr(x, order))
-      case x: LambdaExpr              => Seq(astForLambdaExpr(x, expectedType))
+      case x: LambdaExpr              => Seq(astForLambdaExpr(x, order, expectedType))
       case x: LiteralExpr             => Seq(astForLiteralExpr(x, order))
       case x: MethodCallExpr          => Seq(astForMethodCall(x, order, expectedType))
       case x: NameExpr                => Seq(astForNameExpr(x, order, expectedType))
@@ -2457,6 +2487,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
           .order(idx)
           .code(s"$typ $name")
           .evaluationStrategy(EvaluationStrategies.BY_SHARING)
+          .lineNumber(line(expr))
       }
 
     parameterNodes.foreach { paramNode =>
@@ -2536,7 +2567,11 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
           astsForStatement(stmt, returnOrder)
         } else {
           val returnAst = Ast(
-            NewReturn().order(returnOrder).argumentIndex(returnOrder).code(s"return ${body.toString}")
+            NewReturn()
+              .order(returnOrder)
+              .argumentIndex(returnOrder)
+              .code(s"return ${body.toString}")
+              .lineNumber(line(body))
           )
           val argumentAst = astsForStatement(stmt, 1)
           Seq(returnAst.withChildren(argumentAst))
@@ -2629,6 +2664,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       NewMethodReturn()
         .order(parameters.size + 2)
         .typeFullName(returnType)
+        .lineNumber(line(expr))
 
     val lambdaParameterNamesToNodes =
       parameters
@@ -2696,7 +2732,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
     LambdaImplementedInfo(maybeImplementedType, maybeBoundMethod)
   }
 
-  private def astForLambdaExpr(expr: LambdaExpr, expectedType: Option[ExpectedType]): Ast = {
+  private def astForLambdaExpr(expr: LambdaExpr, order: Int, expectedType: Option[ExpectedType]): Ast = {
     scopeStack.pushNewScope(MethodScope(expectedType.getOrElse(ExpectedType.default)))
 
     // TODO This is terrible and only exists for the purposes of debugging lambdas. REMOVE THIS!!!!
@@ -2717,6 +2753,8 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
         .methodFullName(lambdaMethodNode.fullName)
         .typeFullName(lambdaMethodNode.fullName)
         .code(lambdaMethodNode.fullName)
+        .order(order)
+        .argumentIndex(order)
 
     addClosureBindingsToDiffGraph(closureBindingsForCapturedVars, methodRef)
 
