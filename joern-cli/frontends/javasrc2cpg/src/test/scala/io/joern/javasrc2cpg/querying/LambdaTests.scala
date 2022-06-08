@@ -19,6 +19,43 @@ import io.shiftleft.semanticcpg.language._
 import overflowdb.traversal.jIteratortoTraversal
 
 class LambdaTests extends JavaSrcCode2CpgFixture {
+  "nested lambdas" should {
+    val cpg = code(
+      """
+        |import java.util.ArrayList;
+        |import java.util.List;
+        |import java.util.stream.Collectors;
+        |
+        |public class TestClass {
+        |  public Integer method(Integer aaa) {
+        |    List<Integer> list = new ArrayList<>();
+        |    list.add(1);
+        |
+        |    List<Integer> mappedList = list.stream().map(integer -> {
+        |      List<Integer> nestedList = new ArrayList<>();
+        |      nestedList.add(1);
+        |
+        |      List<Integer> nestedMappedList =
+        |          nestedList.stream().map(nestedInteger -> nestedInteger + aaa).collect(Collectors.toList());
+        |      return nestedMappedList.get(0);
+        |    }).collect(Collectors.toList());
+        |    Integer ret = mappedList.get(0);
+        |    return ret;
+        |  }
+        |}
+        |""".stripMargin)
+
+    "create 2 method nodes for the respective lambdas" in {
+      cpg.method.name(".*lambda.*").l match {
+        case List(lambda0, lambda1) =>
+          lambda0.name shouldBe "lambda$0"
+
+          lambda1.name shouldBe "lambda$1"
+
+        case result => fail(s"Expected 2 lambda methods but got $result")
+      }
+    }
+  }
 
   "lambdas used as a function argument" should {
     val cpg = code("""
@@ -381,19 +418,15 @@ class LambdaTests extends JavaSrcCode2CpgFixture {
 
     "have the correct method body with locals for captured variables" in {
       cpg.method.name(".*lambda.*").body.astChildren.l match {
-        case List(capturedS: Local, concatenated: Local, assignment: Call, ret: Return) =>
-          capturedS.order shouldBe 1
-          capturedS.name shouldBe "s"
-          capturedS.typeFullName shouldBe "java.lang.String"
-
-          concatenated.order shouldBe 2
+        case List(concatenated: Local, assignment: Call, ret: Return) =>
+          concatenated.order shouldBe 1
           concatenated.name shouldBe "concatenated"
           concatenated.typeFullName shouldBe "java.lang.String"
 
-          assignment.order shouldBe 3
+          assignment.order shouldBe 2
           assignment.methodFullName shouldBe Operators.assignment
 
-          ret.order shouldBe 4
+          ret.order shouldBe 3
           ret.astChildren.l match {
             case List(call: Call) =>
               call.name shouldBe "f"
@@ -635,7 +668,8 @@ class LambdaTests extends JavaSrcCode2CpgFixture {
 
   // This is an example of a case where all the type info we need to figure out that the lambda implements
   // `Function<String, String>`, but from JavaParser and the current expectedType propagation we only get
-  // `java.util.Function<Object, Object>`
+  // `java.util.Function<Object, Object>`. Ideally we'd want all occurrences of `java.lang.Object` to be
+  // `java.lang.String` instead.
   "a lambda implementing a mapper in stream" should {
     val cpg = code("""
         |import java.util.List;
@@ -653,15 +687,15 @@ class LambdaTests extends JavaSrcCode2CpgFixture {
         case List(lambdaMethod) =>
           // Lambda body creation tested separately
           lambdaMethod.name shouldBe "lambda$0"
-          lambdaMethod.fullName shouldBe "Foo.lambda$0:java.lang.String(java.lang.String)"
+          lambdaMethod.fullName shouldBe "Foo.lambda$0:java.lang.Object(java.lang.Object)"
           lambdaMethod.parameter.l match {
             case List(lambdaInput) =>
               lambdaInput.name shouldBe "string"
-              lambdaInput.typeFullName shouldBe "java.lang.String"
+              lambdaInput.typeFullName shouldBe "java.lang.Object"
 
             case result => fail(s"Expected single lambda parameter but got $result")
           }
-          lambdaMethod.methodReturn.typeFullName shouldBe "java.lang.String"
+          lambdaMethod.methodReturn.typeFullName shouldBe "java.lang.Object"
 
         case result => fail(s"Expected single lambda method but got $result")
       }
@@ -670,8 +704,8 @@ class LambdaTests extends JavaSrcCode2CpgFixture {
     "create the correct binding for the lambda method" in {
       cpg.all.collectAll[Binding].filter(_.name == "lambda$0").l match {
         case List(lambdaBinding) =>
-          lambdaBinding.methodFullName shouldBe "Foo.lambda$0:java.lang.String(java.lang.String)"
-          lambdaBinding.signature shouldBe "java.lang.String(java.lang.String)"
+          lambdaBinding.methodFullName shouldBe "Foo.lambda$0:java.lang.Object(java.lang.Object)"
+          lambdaBinding.signature shouldBe "java.lang.Object(java.lang.Object)"
 
           lambdaBinding.inE.collectAll[Binds].map(_.outNode()).l match {
             case List(typeDecl: TypeDecl) =>
@@ -688,7 +722,7 @@ class LambdaTests extends JavaSrcCode2CpgFixture {
       cpg.typeDecl.name(".*lambda.*").l match {
         case List(lambdaDecl) =>
           lambdaDecl.name shouldBe "lambda$0"
-          lambdaDecl.fullName shouldBe "Foo.lambda$0:java.lang.String(java.lang.String)"
+          lambdaDecl.fullName shouldBe "Foo.lambda$0:java.lang.Object(java.lang.Object)"
           lambdaDecl.inheritsFromTypeFullName should contain theSameElementsAs List("java.util.function.Function")
 
         case result => fail(s"Expected a single typeDecl for the lambda but got $result")
@@ -697,24 +731,16 @@ class LambdaTests extends JavaSrcCode2CpgFixture {
 
     "create bindings to implemented method" in {
       cpg.all.collectAll[Binding].nameExact("apply").sortBy(_.signature).toList match {
-        case List(erasedBinding, binding) =>
-          binding.methodFullName shouldBe "Foo.lambda$0:java.lang.String(java.lang.String)"
-          binding.signature shouldBe "java.lang.String(java.lang.String)"
+        case List(binding) =>
+          binding.methodFullName shouldBe "Foo.lambda$0:java.lang.Object(java.lang.Object)"
+          binding.signature shouldBe "java.lang.Object(java.lang.Object)"
           binding.inE.collectAll[Binds].map(_.outNode()).l match {
             case List(typeDecl: TypeDecl) =>
-              typeDecl.fullName shouldBe "Foo.lambda$0:java.lang.String(java.lang.String)"
+              typeDecl.fullName shouldBe "Foo.lambda$0:java.lang.Object(java.lang.Object)"
             case result => fail(s"Expected typeDecl but got $result")
           }
 
-          erasedBinding.methodFullName shouldBe "Foo.lambda$0:java.lang.String(java.lang.String)"
-          erasedBinding.signature shouldBe "java.lang.Object(java.lang.Object)"
-          erasedBinding.inE.collectAll[Binds].map(_.outNode()).l match {
-            case List(typeDecl: TypeDecl) =>
-              typeDecl.fullName shouldBe "Foo.lambda$0:java.lang.String(java.lang.String)"
-            case result => fail(s"Expected typeDecl but got $result")
-          }
-
-        case result => fail(s"Expected two bindings to apply method but got $result")
+        case result => fail(s"Expected single binding to apply method but got $result")
       }
     }
   }

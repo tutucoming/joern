@@ -1040,19 +1040,18 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
     val staticVirtualModifierType = if (methodDeclaration.isStatic) ModifierTypes.STATIC else ModifierTypes.VIRTUAL
     val staticVirtualModifier     = Some(NewModifier().modifierType(staticVirtualModifierType))
     val accessModifierType = if (methodDeclaration.isPublic) {
-      ModifierTypes.PUBLIC
+      Some(ModifierTypes.PUBLIC)
     } else if (methodDeclaration.isPrivate) {
-      ModifierTypes.PRIVATE
+      Some(ModifierTypes.PRIVATE)
     } else if (isInterfaceMethod) {
       // TODO: more robust interface check
-      ModifierTypes.PUBLIC
+      Some(ModifierTypes.PUBLIC)
     } else {
-      // Not entirely true for methods without an explicit access modifier, but close enough.
-      ModifierTypes.PROTECTED
+      None
     }
-    val accessModifier = Some(NewModifier().modifierType(accessModifierType))
+    val accessModifier = accessModifierType.map(NewModifier().modifierType(_))
 
-    val modifiers = List(abstractModifier, staticVirtualModifier, accessModifier).flatten.map(Ast(_))
+    val modifiers = List(accessModifier, abstractModifier, staticVirtualModifier).flatten.map(Ast(_))
 
     scopeStack.popScope()
 
@@ -1735,6 +1734,10 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
     ast.root.flatMap(_.properties.get(PropertyNames.TYPE_FULL_NAME).map(_.toString))
   }
 
+  private def rootCode(ast: Seq[Ast]): String = {
+    ast.headOption.flatMap(_.root).flatMap(_.properties.get(PropertyNames.CODE).map(_.toString)).getOrElse("")
+  }
+
   def astsForAssignExpr(expr: AssignExpr, order: Int, expectedExprType: Option[ExpectedType]): Seq[Ast] = {
     val methodName = expr.getOperator match {
       case Operator.ASSIGN               => Operators.assignment
@@ -1768,13 +1771,15 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
         .orElse(expectedType.map(_.fullName))
         .getOrElse(UnresolvedConstants.UnresolvedType)
 
+    val code = s"${rootCode(targetAst)} ${expr.getOperator.asString} ${rootCode(argsAsts)}"
+
     val callNode =
       NewCall()
         .name(methodName)
         .methodFullName(methodName)
         .lineNumber(line(expr))
         .columnNumber(column(expr))
-        .code(expr.toString)
+        .code(code)
         .argumentIndex(order)
         .order(order)
         .dispatchType(DispatchTypes.STATIC_DISPATCH)
@@ -1845,10 +1850,16 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       val typeFullName =
         variableTypeFullName.orElse(initializerTypeFullName).getOrElse(UnresolvedConstants.UnresolvedType)
 
+      // Need the actual resolvedType here for when the RHS is a lambda expression.
+      val resolvedExpectedType = Try(symbolResolver.toResolvedType(variable.getType, classOf[ResolvedType])).toOption
+      val initializerAsts = astsForExpression(initializer, 2, Some(ExpectedType(typeFullName, resolvedExpectedType)))
+
+      val code = s"$name = ${rootCode(initializerAsts)}"
+
       val callNode = NewCall()
         .name(Operators.assignment)
         .methodFullName(Operators.assignment)
-        .code(s"$name = ${initializer.toString()}")
+        .code(code)
         .order(order + idx + constructorCount)
         .argumentIndex(order + idx + constructorCount)
         .lineNumber(lineNumber)
@@ -1866,9 +1877,6 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
         .columnNumber(column(variable))
       val targetAst = Ast(identifier)
 
-      // Need the actual resolvedType here for when the RHS is a lambda expression.
-      val resolvedExpectedType = Try(symbolResolver.toResolvedType(variable.getType, classOf[ResolvedType])).toOption
-      val initializerAsts = astsForExpression(initializer, 2, Some(ExpectedType(typeFullName, resolvedExpectedType)))
       // Since all partial constructors will be dealt with here, don't pass them up.
       val declAst = callAst(callNode, Seq(targetAst) ++ initializerAsts)
 
@@ -2596,7 +2604,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
       .fullName(lambdaFullName)
       .signature(signature)
       .filename(filename)
-      .code(expr.toString)
+      .code("<lambda>")
   }
 
   private def addLambdaMethodBindingToDiffGraph(lambdaMethodNode: NewMethod): Unit = {
@@ -2735,14 +2743,7 @@ class AstCreator(filename: String, javaParserAst: CompilationUnit, global: Globa
   private def astForLambdaExpr(expr: LambdaExpr, order: Int, expectedType: Option[ExpectedType]): Ast = {
     scopeStack.pushNewScope(MethodScope(expectedType.getOrElse(ExpectedType.default)))
 
-    // TODO This is terrible and only exists for the purposes of debugging lambdas. REMOVE THIS!!!!
-    val lambdaMethodBody = astForLambdaBody(expr.getBody, List.empty, "", 0)
-    val bodyIdentifiers  = lambdaMethodBody.nodes.collect { case ident: NewIdentifier => ident }.map(_.name).toSet
-    // END TERRIBLE
-
-    val capturedVariables = scopeStack.getCapturedVariables.filter { variable =>
-      bodyIdentifiers.contains(variable.name)
-    }
+    val capturedVariables = scopeStack.getCapturedVariables
     val closureBindingsForCapturedVars = closureBindingsForCapturedNodes(capturedVariables)
     val localsForCaptured              = localsForCapturedNodes(closureBindingsForCapturedVars)
     val implementedInfo                = getLambdaImplementedInfo(expr, expectedType)
