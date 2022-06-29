@@ -79,3 +79,19 @@ are:
 For more instructions on how to run benchmarks individually head over to the `benchmarks` subproject. If you would
 like the benchmark results to be written to a file instead of printed to STDOUT, set the path to the environment 
 variable `JOERN_BENCHMARK_RESULT_FILE`.
+
+
+## 用graphviz生成CFG
+
+Step1:切换到dot文件所在的目录
+
+```
+$ cd /target path
+```
+
+Step2:通过dot文件生成png格式结果
+
+```
+$ dot -Tpng [target].dot -o [target].png
+```
+
